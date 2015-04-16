@@ -19,8 +19,15 @@ _API_VERSION = 'v1'
 CLIENT_SECRETS = os.path.join(os.path.dirname(__file__), 'client_secrets.json')
 
 def upload_file(service,bucket_name,from_file_name,to_file_name):
+	# try delete it first
+	try:
+		delete_file(service,'',"/" + to_file_name)
+	except Exception as e:
+		pass
 	# The BytesIO object may be replaced with any io.Base instance.
-	media = apiclient.http.MediaIoBaseUpload(io.BytesIO('wawatuzimomo'), 'text/plain')
+	f = open(from_file_name,'r')
+	media = apiclient.http.MediaIoBaseUpload(io.BytesIO(f.read()), 'text/plain')
+	f.close()
 	# All object_resource fields here are optional.
 	object_resource = {
 			#'metadata': {'my-key': 'my-value'},
@@ -37,8 +44,23 @@ def upload_file(service,bucket_name,from_file_name,to_file_name):
 	resp = req.execute()
 	#print json.dumps(resp, indent=2)
 
-def upload_string(str_to_upload,to_file_name):
-	pass
+def upload_string(service, bucket_name, str_to_upload,to_file_name):
+	# The BytesIO object may be replaced with any io.Base instance.
+	media = apiclient.http.MediaIoBaseUpload(io.BytesIO(str_to_upload), 'text/plain')
+	# All object_resource fields here are optional.
+	object_resource = {
+			#'metadata': {'my-key': 'my-value'},
+			'contentLanguage': 'en',
+			#'md5Hash': 'HlAhCgICSX+3m8OLat5sNA==',
+			#'crc32c': 'rPZE1w==',
+
+	}
+	req = service.objects().insert(
+			bucket=bucket_name,
+			name=to_file_name,
+			body=object_resource,     # optional
+			media_body=media)
+	resp = req.execute()
 
 def delete_file(service,bucket_name,object_name):
 	service.objects().delete(
@@ -60,7 +82,7 @@ def download_file(service, bucket_name,object_name):
 		#if status:
 		#	print 'Download %d%%.' % int(status.progress() * 100)
 		#print 'Download Complete!'
-	#print fh.getvalue()
+	return fh.getvalue()
 
 def get_all_file_names(service,bucket_name):
 	try:
@@ -100,6 +122,6 @@ def create_service_object():
 s = create_service_object()
 get_all_file_names(s,_BUCKET_NAME)
 download_file(s,_BUCKET_NAME,'hehe.txt')
-upload_file(s,_BUCKET_NAME,'','tuzi.txt')
+upload_string(s,_BUCKET_NAME,'ylsistuzi','tuzi.txt')
 #delete_file(s,_BUCKET_NAME,'tuzi.txt')
 print get_all_file_names(s,_BUCKET_NAME);
