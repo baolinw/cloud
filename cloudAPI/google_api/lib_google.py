@@ -18,7 +18,7 @@ _API_VERSION = 'v1'
 
 CLIENT_SECRETS = os.path.join(os.path.dirname(__file__), 'client_secrets.json')
 
-def upload_file(service,bucket_name,from_file_name,to_file_name):
+def upload_file(service,from_file_name,to_file_name):
 	# try delete it first
 	try:
 		delete_file(service,'',"/" + to_file_name)
@@ -37,14 +37,14 @@ def upload_file(service,bucket_name,from_file_name,to_file_name):
 
 	}
 	req = service.objects().insert(
-			bucket=bucket_name,
+			bucket=_BUCKET_NAME,
 			name=to_file_name,
 			body=object_resource,     # optional
 			media_body=media)
 	resp = req.execute()
 	#print json.dumps(resp, indent=2)
 
-def upload_string(service, bucket_name, str_to_upload,to_file_name):
+def upload_string(service, str_to_upload,to_file_name):
 	# The BytesIO object may be replaced with any io.Base instance.
 	media = apiclient.http.MediaIoBaseUpload(io.BytesIO(str_to_upload), 'text/plain')
 	# All object_resource fields here are optional.
@@ -56,22 +56,22 @@ def upload_string(service, bucket_name, str_to_upload,to_file_name):
 
 	}
 	req = service.objects().insert(
-			bucket=bucket_name,
+			bucket=_BUCKET_NAME,
 			name=to_file_name,
 			body=object_resource,     # optional
 			media_body=media)
 	resp = req.execute()
 
-def delete_file(service,bucket_name,object_name):
+def delete_file(service,object_name):
 	service.objects().delete(
-        bucket=bucket_name,
+        bucket=_BUCKET_NAME,
         object=object_name).execute()
 	pass
 	
-def download_file(service, bucket_name,object_name):
+def download_file(service ,object_name, to_file_name):
 	# Get Payload Data
 	req = service.objects().get_media(
-			bucket=bucket_name,
+			bucket=_BUCKET_NAME,
 			object=object_name)
 	# The BytesIO object may be replaced with any io.Base instance.
 	fh = io.BytesIO()
@@ -82,20 +82,26 @@ def download_file(service, bucket_name,object_name):
 		#if status:
 		#	print 'Download %d%%.' % int(status.progress() * 100)
 		#print 'Download Complete!'
-	return fh.getvalue()
+	f = open(to_file_name,'w')
+	v = fh.getvalue();
+	f.write(v);
+	f.close()
+	return v
 
-def get_all_file_names(service,bucket_name):
+def get_all_file_names(service):
 	try:
 		fields_to_return = 'nextPageToken,items(name,size,contentType,metadata(my-key))'
-		req = service.objects().list(bucket=bucket_name, fields=fields_to_return)
+		req = service.objects().list(bucket=_BUCKET_NAME, fields=fields_to_return)
 		# If you have too many items to list in one request, list_next() will
 		# automatically handle paging with the pageToken.
 		file_names = []
 		while req is not None:
 			resp = req.execute()
 			#print json.dumps(resp, indent=2)
+			if  'items' not in resp:
+				break;
 			for name in resp['items']:
-				file_names.append(name['name'])
+				file_names.append((name['name'],name['size']))
 			req = service.objects().list_next(req, resp)
 		return file_names
 
@@ -105,7 +111,7 @@ def get_all_file_names(service,bucket_name):
 	
 
 def create_service_object():
-	storage = file.Storage('sample.dat')
+	storage = file.Storage(os.path.join(os.path.dirname(__file__), 'sample.dat'))
 	credentials = storage.get()
 	if credentials is None or credentials.invalid:
 		raise "You need to refresh the access token"
@@ -118,10 +124,31 @@ def create_service_object():
 	# Construct the service object for the interacting with the Cloud Storage API.
 	service = discovery.build('storage', _API_VERSION, http=http)
 	return service
+	
+def reinit_storage(argv):
+	parser = argparse.ArgumentParser(
+		description=__doc__,
+		formatter_class=argparse.RawDescriptionHelpFormatter,
+		parents=[tools.argparser])
+	
+	CLIENT_SECRETS = os.path.join(os.path.dirname(__file__), 'client_secrets.json')
+	FLOW = client.flow_from_clientsecrets(CLIENT_SECRETS,
+	  scope=[
+		  'https://www.googleapis.com/auth/devstorage.full_control',
+		  'https://www.googleapis.com/auth/devstorage.read_only',
+		  'https://www.googleapis.com/auth/devstorage.read_write',
+		],
+		message=tools.message_if_missing(CLIENT_SECRETS))
+	storage = file.Storage(os.path.join(os.path.dirname(__file__), 'sample.dat'))
+	flags = parser.parse_args(argv[1:])
+	credentials = tools.run_flow(FLOW, storage, flags)
  
-s = create_service_object()
-get_all_file_names(s,_BUCKET_NAME)
-download_file(s,_BUCKET_NAME,'hehe.txt')
-upload_string(s,_BUCKET_NAME,'ylsistuzi','tuzi.txt')
+if __name__ == "__main__":
+	# --noauth_local_webserver
+	# reinit_storage(sys.argv)
+	s = create_service_object()
+	print get_all_file_names(s,_BUCKET_NAME)
+#download_file(s,_BUCKET_NAME,'hehe.txt')
+#upload_string(s,_BUCKET_NAME,'ylsistuzi','tuzi.txt')
 #delete_file(s,_BUCKET_NAME,'tuzi.txt')
-print get_all_file_names(s,_BUCKET_NAME);
+#print get_all_file_names(s,_BUCKET_NAME);
