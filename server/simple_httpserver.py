@@ -4,6 +4,7 @@ from urlparse import parse_qs
 
 import file_handler
 import meta_puller
+import config
 
 def convert_chunk_to_str(chunk):
 	''' chunk = [file_name, index, id, server_id_of_chunk, storage_engining]
@@ -60,10 +61,30 @@ def handle_create_file(param):
 	file_name = param['file_name'][0]
 	return file_handler.request_create_file(file_name)
 	
+def handle_write_file(param):
+	file_name = param['file_name'][0]
+	chunks = param['chunk_ids'][0]
+	chunks = [int(i) for i in chunks.split(',')]
+	chunk_sizes = param['chunk_size'][0]
+	chunk_sizes = [int(i) for i in chunk_sizes.split(',')]
+	if not all([i == config.FILE_CHUNK_SIZE for i in chunk_sizes]):
+		return '-3:chunk size should be' + str(config.FILE_CHUNK_SIZE)
+	return file_handler.request_write_file(file_name,chunks,chunk_sizes)
+
+def handle_read_file(param):
+	file_name = param['file_name'][0]
+	chunks = param['chunk_ids'][0]
+	chunks = [int(i) for i in chunks.split(',')]
+	return file_handler.request_read_file(file_name,chunks)
+
+def handle_del_file(param):
+	file_name = param['file_name'][0]
+	return file_handler.del_file(file_name)
+	
 def handle_commit_trans(param):
 	trans_id = int(param['id'][0])
 	return file_handler.handle_commit(trans_id,' ')
-	
+
 class TestHTTPHandle(BaseHTTPRequestHandler):   
     def do_GET(self):
 		global FILES
@@ -88,6 +109,12 @@ class TestHTTPHandle(BaseHTTPRequestHandler):
 			buf = handle_create_file(param)
 		if cmd == 'commit_trans':
 			buf = handle_commit_trans(param)
+		if cmd == 'del_file':
+			buf = handle_del_file(param)
+		if cmd == 'write_file':
+			buf = handle_write_file(param)
+		if cmd == 'read_file':
+			buf = handle_read_file(param)
 	
 		self.protocal_version = "HTTP/1.1"
 		#buf = convert_files_info_to_xml(FILES)

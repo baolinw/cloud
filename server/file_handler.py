@@ -5,6 +5,7 @@ import time
 import mysql_api
 import trans
 import meta_puller
+import config
 
 # the "transaction" is implemented as follows:
 # using some trick to give the client some files to handle, 
@@ -12,6 +13,8 @@ import meta_puller
 # to "commit" the change in the server in synchronise way
 
 CreatFileLock = {} # map 'string' to arbitrary integer
+WriteFileLock = {}
+ReadFileLock = {}
 
 trans.Init()
 
@@ -56,6 +59,44 @@ def abort_create_file(trans):
 # which server to put the file
 def choose_create_target_server(file_name):
 	return [0]
+
+# where to put the file to write, 
+# if it already exist, put it in original server, 
+# else call choose_create_target_server
+def choose_write_target_server(file_name, chunks):
+	ret = []
+	for chunk in chunks:
+		if chunk < meta_puller.get_chunks_id(file_name):
+			original_location = meta_puller.get_file_chunk_info(file_name,chunk)
+			original_location = [i[0] for i in original_location]
+			if len(original_location) >= config.FILE_DUPLICATE_NUM:
+				ret.extend(original_location[0:config.FILE_DUPLICATE_NUM])
+			else:
+				ret.extend(original_location)
+				remain = config.FILE_DUPLICATE_NUM - len(original_location)
+				num_server = meta_puller.get_server_num()
+				#other_server = random.shuffle(range(num_server))[0:remain]
+				# for test purpose, I only use 0
+				other_server = [0] * remain
+				ret.extend(other_server);
+		else: # add new chunk
+			# TODO, implement server choosing algorithm
+			ret.extend([0] * config.FILE_DUPLICATE_NUM)
+	return ret	
+
+# where to read the files
+def choose_read_target_server(file_name, chunks):
+	# currently I only choose the 1st one
+	ret = []
+	max_chunk_id = meta_puller.get_chunks_id(file_name)
+	for chunk in chunks:
+		if max_chunk_id <= chunk:
+			ret.append(-1)
+			continue
+		tmp = meta_puller.get_file_chunk_info(file_name,chunk)
+		ret.append(tmp[0][0])
+	return ret
+		
 	
 # all the transactions returns the 0:0:xx: format for the client to understand
 def request_create_file(file_name):
@@ -85,9 +126,90 @@ def request_create_file(file_name):
 		tmp.append(str(server))
 	tmp.append(file_name);
 	return ':'.join(tmp)
-	
 
-# distribute the file into different server
+def request_write_file(file_name,chunks, chunk_sizes):
+	if file_name not in meta_puller.get_all_file_names():
+		return '-2:file Not exist'
+		
+	# first check the readFileLock
+	if ReadFileLock.has_key(file_name):
+		for chunk in chunks:
+			if chunk in ReadFileLock[file_name].keys():
+				return '-1:Read Locked by others'
+		
+	if WriteFileLock.has_key(file_name):
+		for chunk in chunks:
+			if chunk in WriteFileLock[file_name].keys():
+				return '-1:Write Locked by others'
+				
+	if not WriteFileLock.has_key(file_name):
+		WriteFileLock[file_name] = {}
+		
+	for chunk in chunks:
+		WriteFileLock[file_name][chunk] = 0
+	
+	# create a transaction id
+	trans_id = trans.get_next_trans_id()
+	# add the transaction to transaction manager
+	target_server = choose_write_target_server(file_name, chunks)
+	# [chunk_0_server_1, chunk_0_server_2.., chunk_1_server_1]
+	
+	trans.AddTrans(trans_id,[ \
+		'WRITE_FILE', \
+		file_name,
+		target_server,
+		chunks,
+		chunk_sizes,
+		time.time()	])
+	# return the response for client to do their own stuff
+	# success, trans_id, file_name
+	tmp = [str(0), str(trans_id), str(len(target_server)) ]
+	for server in target_server:
+		tmp.append(str(server))
+	return ':'.join(tmp)	
+	
+def request_read_file(file_name,chunks):
+	if file_name not in meta_puller.get_all_file_names():
+		return '-2:file Not exist'
+		
+	if WriteFileLock.has_key(file_name):
+		for chunk in chunks:
+			if chunk in WriteFileLock[file_name].keys():
+				return '-1:Write Locked by others'
+				
+	if not ReadFileLock.has_key(file_name):
+		ReadFileLock[file_name] = {}
+		
+	for chunk in chunks:
+		ReadFileLock[file_name][chunk] = 0
+	
+	# create a transaction id
+	trans_id = trans.get_next_trans_id()
+	# add the transaction to transaction manager
+	target_server = choose_read_target_server(file_name, chunks)
+	
+	meta_puller.copy_file_by_renaming(trans_id, file_name, chunks, target_server);
+	
+	trans.AddTrans(trans_id,[ \
+		'READ_FILE', \
+		file_name,
+		target_server,
+		chunks,
+		time.time()	])
+	# return the response for client to do their own stuff
+	# success, trans_id, file_name
+	tmp = [str(0), str(trans_id), str(len(target_server)) ]
+	for server in target_server:
+		tmp.append(str(server))
+	return ':'.join(tmp)
+
+def del_file(file_name):
+	# will implement the lock mechanism later
+	if file_name not in meta_puller.get_all_file_names():
+		return '-1:not file named ' + file_name
+	
+	ret_val,ret_msg = meta_puller.del_file(file_name)
+	return str(ret_val) + ":" + ret_msg
 
 # commit the create file
 def commit_create_file(trans_id):
@@ -105,12 +227,59 @@ def commit_create_file(trans_id):
 	del CreatFileLock[file_name]
 	trans.DelTrans(trans_id)	
 	return '0'
-
+	
+# commit the write file
+def commit_write_file(trans_id):
+	if trans.has_key(trans_id) == False or trans.get_key(trans_id) == None:
+		return '-1:' + 'No such Trans:' + str(trans_id)
+	Trans = trans.get_key(trans_id)
+	# extract the transaction infomation
+	file_name = Trans[1]
+	target_servers = Trans[2]
+	chunks = Trans[3]
+	chunk_sizes = Trans[4]
+	
+	meta_puller.update_file_by_renaming(trans_id, file_name, chunks, chunk_sizes, target_servers)
+	
+	for c in chunks:
+		del WriteFileLock[file_name][c]
+	trans.DelTrans(trans_id)
+	return '0'
+	
+def commit_read_file(trans_id):
+	if trans.has_key(trans_id) == False or trans.get_key(trans_id) == None:
+		return '-1:' + 'No such Trans:' + str(trans_id)
+	Trans = trans.get_key(trans_id)
+	# extract the transaction infomation
+	file_name = Trans[1]
+	target_servers = Trans[2]
+	chunks = Trans[3]
+	
+	# meta_puller.update_file_by_renaming(trans_id, file_name, chunks, chunk_sizes, target_servers)
+	# just delete something
+	meta_puller.del_tmp_file_to_read(trans_id, file_name, chunks, target_servers)
+	
+	for c in chunks:
+		del ReadFileLock[file_name][c]
+	
+	trans.DelTrans(trans_id)
+	return '0'
+	
 def handle_commit(transaction_id, msg):
+	if trans.has_key(transaction_id) == False:
+		return '-1:No Transaction or Tans be deleted'
 	trans.LockResource()
 	ret_result = '0:Transaction Succeed'
 	#try:
-	ret_result = commit_create_file(transaction_id)
+	command = trans.get_key(transaction_id)[0]
+	if command == 'CREATE_FILE':
+		ret_result = commit_create_file(transaction_id)
+	elif command == 'WRITE_FILE':
+		ret_result = commit_write_file(transaction_id)
+	elif command == 'READ_FILE':
+		ret_result = commit_read_file(transaction_id)
+	else:
+		ret_result = '-1:unknown tansaction cmd'
 	#except Exception as e:
 	#	print 'Exception!!',str(e)
 	#	trans.DelTrans(transaction_id)
