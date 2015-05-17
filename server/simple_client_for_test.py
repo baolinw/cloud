@@ -72,6 +72,20 @@ def cache_list_all_files():
 		cur_map['files'][file_name[-1]] = size		
 	return ret
 	
+def raw_cache_list_all_files():
+	param = {'folder_name':['/']} # the server doesn't care about the folder name, clients care
+	ret = {'dirs':{}, 'files':{}}
+	buf = simple_httpserver.handle_get_all_files(param)
+	buf = buf.split(':')
+	assert(buf[0] == '0')
+	len_files = int(buf[1])
+	file_names = []
+	for i in range(len_files):
+		file_name,size,is_foler = buf[2 + i*3:5 + i*3] # is_folder is deprecated
+		file_names.append([file_name,size])
+	return file_names
+		
+	
 # create the directory structure under the ROOT directory
 CLIENT_ROOT_DIR = '/tmp/hehehe/'
 	
@@ -82,7 +96,6 @@ def cache_get_chunks_info(file_name):
 	param['request_chunk_index'] = ['0']
 	buf = simple_httpserver.handle_meta_file_info(param)
 	buf = buf.split(':')
-	# print buf
 	assert(buf[0] == '0')
 	file_name = buf[1]
 	file_size = buf[2]
@@ -112,7 +125,7 @@ def cache_create_file(file_name):
 	file_name = name_local_to_remote(file_name)
 	buf = simple_httpserver.handle_create_file({'file_name':[file_name]})
 	buf = buf.split(':')
-	print buf
+	#print buf
 	if buf[0] != '0':
 		raise 'File: ' + file_name + ' could not be created! ' + buf[1]
 	trans_id = int(buf[1])
@@ -184,9 +197,10 @@ def cache_read_file(file_name, start, size):
 	return ''.join(list(byte_file))
 	
 # test only
-def cache_write_file(file_name, start, size, char_to_write):
+def cache_write_file(file_name, start, to_write):
+	size = len(to_write)
 	file_name = name_local_to_remote(file_name)
-	chunk_info = get_chunks_info(file_name)
+	chunk_info = cache_get_chunks_info(file_name)
 	chunk_ids = get_how_many_chunks_involved(file_name, start, size, False, chunk_info)
 	if len(chunk_ids) == 0:
 		raise ' Write error, chunk info wrong! Start:' + str(start) + ' Size:' + str(size)
@@ -196,21 +210,23 @@ def cache_write_file(file_name, start, size, char_to_write):
 	buf_to_write = list(buf_to_write)
 	# first and last chunk should be considered
 	if start % config.FILE_CHUNK_SIZE != 0 and start / config.FILE_CHUNK_SIZE < len(chunk_info):
-		buf_to_write[0:config.FILE_CHUNK_SIZE] = read_file(file_name, start, 1)
+		buf_to_write[0:config.FILE_CHUNK_SIZE] = cache_read_file(file_name, start, 1)
 	if (start + size) % config.FILE_CHUNK_SIZE != 0 and (start + size) / config.FILE_CHUNK_SIZE < len(chunk_info):
-		buf_to_write[-config.FILE_CHUNK_SIZE:] = read_file(file_name, (start + size - 1) / config.FILE_CHUNK_SIZE, 1)
+		buf_to_write[-config.FILE_CHUNK_SIZE:] = cache_read_file(file_name, (start + size - 1) / config.FILE_CHUNK_SIZE, 1)
 	
 	s = start % config.FILE_CHUNK_SIZE 
 	e = s + size
+	iii = 0
 	while s < e:
-		buf_to_write[s] = char_to_write
+		buf_to_write[s] = to_write[iii]
 		s += 1
+		iii += 1
 
 	str_chunk_ids = [str(i) for i in chunk_ids]
 	str_chunk_sizes = ','.join([str(config.FILE_CHUNK_SIZE)] * len(chunk_ids))
 	#print str_chunk_sizes
 	buf = simple_httpserver.handle_write_file({'file_name':[file_name], 'chunk_ids':[','.join(str_chunk_ids)], 'chunk_size':[str_chunk_sizes]})
-	print buf
+	#print buf
 	assert(buf[0] == '0')
 	trans_id = int(buf.split(':')[1])
 	len_server = int(buf.split(':')[2])
@@ -228,7 +244,7 @@ def cache_write_file(file_name, start, size, char_to_write):
 			f.write(''.join(buf_to_write[index*config.FILE_CHUNK_SIZE:(index+1)*config.FILE_CHUNK_SIZE]))
 			f.close()
 			target_file_name = str(chunk_ids[index]) + '_' + file_name + '.trans' + str(trans_id)
-			print target_file_name,"HEHEHE"
+			#print target_file_name,"HEHEHE"
 			s['upload_file'](s['server_object'], '/tmp/hehe', target_file_name)
 			
 	buf = simple_httpserver.handle_commit_trans({'id':[trans_id]})
@@ -239,9 +255,9 @@ def cache_write_file(file_name, start, size, char_to_write):
 
  
 if __name__ == "__main__":
-	print list_all_files()
-	#create_file('tutu2.txt')
-	write_file('tutu2.txt',1020,8,'Z')
+	print cache_list_all_files()
+	cache_create_file('tutu2.txt')
+	cache_write_file('tutu2.txt',1020,'Z'*8)
 	#write_file('tutu2.txt', 1025, 10, 'B')
 	#write_file('tutu2.txt', 1026, 10, 'L')
 	

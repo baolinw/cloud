@@ -89,7 +89,7 @@ class TestHTTPHandle(BaseHTTPRequestHandler):
     def do_GET(self):
 		global FILES
 		a = self.path
-		print a		
+		#print a		
 			
 		cmd = 'invalid'
 		param = ''

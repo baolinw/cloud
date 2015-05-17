@@ -211,4 +211,18 @@ def del_file(file_name):
 			
 	del FILES[file_name]
 	return 0,'Success'
+	
+# file_name can be '', report the server's who failure 
+def report_fail(server_id, file_name, chunk_file):
+	pass
+	
+# migrate all the files originally in the server_id, to other servers
+def migration(server_id):
+
+# we just simulate some hard-coded server joining event
+def server_join_test1():
+	pass
+# we can only simulate some server failure case, 
+def server_fail_test1():
+	pass
 		
