@@ -6,7 +6,8 @@ import google_api.lib_google
 import dropbox_api
 import dropbox_api.lib_dropbox
 import config
-
+import local_api
+import local_api.lib_local
 
 # server descriptor 
 # every server is a dict, having an id, name, some function pointers
@@ -24,6 +25,16 @@ def init_config():
 	# init the google server
 	SERVERS.append( { \
 		'id':0, \
+		'name' : 'Local', \
+		'server_object' : local_api.lib_local.create_service_object('wbl'), \
+		'get_all_file_names' : local_api.lib_local.get_all_file_names, \
+		'download_file' : local_api.lib_local.download_file, \
+		'delete_file' :  local_api.lib_local.delete_file, \
+		'upload_file' : local_api.lib_local.upload_file
+	})	
+	'''
+	SERVERS.append( { \
+		'id':1, \
 		'name' : 'Google', \
 		'server_object' : google_api.lib_google.create_service_object(), \
 		'get_all_file_names' : google_api.lib_google.get_all_file_names, \
@@ -32,14 +43,14 @@ def init_config():
 		'upload_file' : google_api.lib_google.upload_file
 	})
 	SERVERS.append( { \
-		'id':1, \
+		'id':2, \
 		'name' : 'DropBox1', \
 		'server_object' : dropbox_api.lib_dropbox.create_service_object(), \
 		'get_all_file_names' : dropbox_api.lib_dropbox.get_all_file_names, \
 		'download_file' : dropbox_api.lib_dropbox.download_file, \
 		'delete_file' :  dropbox_api.lib_dropbox.delete_file, \
 		'upload_file' : dropbox_api.lib_dropbox.upload_file
-	})
+	})''';
 	
 def pull_meta(DELETE_NON_FINISH_TRANSCATION = False):
 	global SERVERS

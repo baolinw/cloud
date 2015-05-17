@@ -43,7 +43,7 @@ def get_all_file_names(service):
 		ret.append((path,size))
 	return ret	
 
-def create_service_object():
+def create_service_object(extra_info):
 	client = dropbox.client.DropboxClient(_API_ACCESS_TOKEN)
 	return client
  

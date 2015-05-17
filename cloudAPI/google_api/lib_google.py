@@ -110,7 +110,7 @@ def get_all_file_names(service):
 		"the application to re-authorize")
 	
 
-def create_service_object():
+def create_service_object(extra_info):
 	storage = file.Storage(os.path.join(os.path.dirname(__file__), 'sample.dat'))
 	credentials = storage.get()
 	if credentials is None or credentials.invalid:
