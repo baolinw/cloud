@@ -25,6 +25,7 @@ def init_config():
 	# init the google server
 	SERVERS.append( { \
 		'id':0, \
+		'live':1, \
 		'name' : 'Local', \
 		'server_object' : local_api.lib_local.create_service_object('wbl'), \
 		'get_all_file_names' : local_api.lib_local.get_all_file_names, \
@@ -34,8 +35,19 @@ def init_config():
 	})	
 	SERVERS.append( { \
 		'id':1, \
+		'live':1, \
 		'name' : 'Local', \
 		'server_object' : local_api.lib_local.create_service_object('wbl2'), \
+		'get_all_file_names' : local_api.lib_local.get_all_file_names, \
+		'download_file' : local_api.lib_local.download_file, \
+		'delete_file' :  local_api.lib_local.delete_file, \
+		'upload_file' : local_api.lib_local.upload_file
+	})	
+	SERVERS.append( { \
+		'id':2, \
+		'live':1, \
+		'name' : 'Local', \
+		'server_object' : local_api.lib_local.create_service_object('wbl3'), \
 		'get_all_file_names' : local_api.lib_local.get_all_file_names, \
 		'download_file' : local_api.lib_local.download_file, \
 		'delete_file' :  local_api.lib_local.delete_file, \

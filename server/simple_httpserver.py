@@ -70,6 +70,16 @@ def handle_write_file(param):
 	if not all([i == config.FILE_CHUNK_SIZE for i in chunk_sizes]):
 		return '-3:chunk size should be' + str(config.FILE_CHUNK_SIZE)
 	return file_handler.request_write_file(file_name,chunks,chunk_sizes)
+	
+# manually 'make' the server fail
+def handle_fail_server(param):
+	server_id = int(param['server_id'][0])
+	return file_handler.request_fail_server(server_id)
+	
+# manually 'make' the server resume
+def handle_ok_server(param):
+	server_id = int(param['server_id'][0])
+	return file_handler.request_ok_server(server_id)
 
 def handle_read_file(param):
 	file_name = param['file_name'][0]
@@ -115,6 +125,10 @@ class TestHTTPHandle(BaseHTTPRequestHandler):
 			buf = handle_write_file(param)
 		if cmd == 'read_file':
 			buf = handle_read_file(param)
+		if cmd == 'fail_server':
+			buf = handle_fail_server(param)
+		if cmd == 'ok_server':
+			buf = handle_ok_server(param)
 	
 		self.protocal_version = "HTTP/1.1"
 		#buf = convert_files_info_to_xml(FILES)

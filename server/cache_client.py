@@ -322,7 +322,7 @@ if __name__ == "__main__":
 	assert(all([tmp[START+i] == 'H' for i in range(TEST_NUM)]))
 	close_file(fpp,'pp.txt')
 	
-	print 'Basic Cache Client Passed!'
+	print '\033[1;32;40mBasic Cache Client Passed!\033[0m '
 	
 	# test1 -----------------, download/modify/upload/download/check
 	# at first download the file of tutu2.txt

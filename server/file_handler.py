@@ -6,6 +6,7 @@ import mysql_api
 import trans
 import meta_puller
 import config
+import random
 
 # the "transaction" is implemented as follows:
 # using some trick to give the client some files to handle, 
@@ -59,19 +60,51 @@ def abort_create_file(trans):
 # which server to put the file
 def choose_create_target_server(file_name):
 	#return range(len(meta_puller.SERVERS))
-	return [0]
+	# randomly select
+	ret = []
+	for id in range(len(meta_puller.SERVERS)):
+		if meta_puller.SERVERS[id]['live'] == 0:
+			continue
+		ret.append(id)
+	random.shuffle(ret)
+	upper = min(len(ret),config.FILE_DUPLICATE_NUM)
+	ret = ret[0:upper]
+	if len(ret) < config.FILE_DUPLICATE_NUM:
+		ret.extend([-1] * (FILE_DUPLICATE_NUM - len(ret)))
+	return ret	
+	
+def alive_server_ids():
+	ret = []
+	for id in range(len(meta_puller.SERVERS)):
+		if meta_puller.SERVERS[id]['live'] == 0:
+			continue
+		ret.append(id)
+	return ret
 
+# randomly
+def choose_servers(alread_choosed,num_total):
+	remain = num_total - len(alread_choosed)
+	if remain <= 0:
+		return alread_choosed
+	alives = alive_server_ids()
+	for i in range(len(alives)):
+		if alives[i] in alread_choosed:
+			alives[i] = -1
+	ret = alread_choosed
+	count = 0
+	for i in range(remain):
+		if count < len(alives) and alives[count] != -1:
+			ret.append(alives[count])
+		count += 1
+	if len(ret) < num_total:
+		ret.extend([-1] * (num_total - len(ret)))
+	return ret			
+	
 # where to put the file to write, 
 # if it already exist, put it in original server, 
 # else call choose_create_target_server
-def choose_write_target_server(file_name, chunks):
-	# simple enough for test
-	ss = len(meta_puller.SERVERS)
+def choose_write_target_server(file_name, chunks):	
 	ret = []
-	for c in chunks:
-		ret.append(c % ss)
-	return ret
-	
 	for chunk in chunks:
 		if chunk < meta_puller.get_chunks_id(file_name):
 			original_location = meta_puller.get_file_chunk_info(file_name,chunk)
@@ -79,16 +112,18 @@ def choose_write_target_server(file_name, chunks):
 			if len(original_location) >= config.FILE_DUPLICATE_NUM:
 				ret.extend(original_location[0:config.FILE_DUPLICATE_NUM])
 			else:
-				ret.extend(original_location)
-				remain = config.FILE_DUPLICATE_NUM - len(original_location)
-				num_server = meta_puller.get_server_num()
+				ret.extend(choose_servers(original_location,config.FILE_DUPLICATE_NUM))
+				#remain = config.FILE_DUPLICATE_NUM - len(original_location)
+				#num_server = meta_puller.get_server_num()
 				#other_server = random.shuffle(range(num_server))[0:remain]
 				# for test purpose, I only use 0
-				other_server = [0] * remain
-				ret.extend(other_server);
+				#other_server = [0] * remain
+				#ret.extend(other_server);
 		else: # add new chunk
 			# TODO, implement server choosing algorithm
-			ret.extend([0] * config.FILE_DUPLICATE_NUM)
+			tmp = choose_create_target_server(file_name)			
+			ret.extend(tmp)
+			#ret.extend([0] * config.FILE_DUPLICATE_NUM)
 	return ret	
 
 # where to read the files
@@ -102,8 +137,7 @@ def choose_read_target_server(file_name, chunks):
 			continue
 		tmp = meta_puller.get_file_chunk_info(file_name,chunk)
 		ret.append(tmp[0][0])
-	return ret
-		
+	return ret		
 	
 # all the transactions returns the 0:0:xx: format for the client to understand
 def request_create_file(file_name):
