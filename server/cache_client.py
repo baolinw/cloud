@@ -12,7 +12,7 @@ lock = Lock()
 CACHE_CHUNK_INFO = {}
 ROOT_DIR = simple_client_for_test.CLIENT_ROOT_DIR
 CURRENT_OPEN_FILES = {} # map file name to R/W
-
+DIRTIES = {} # dirty flag
 FILE_READ_TRANSACTION = {} # file_name to transaction id
 FILE_WRITE_TRANSACTION = {} # file_name to transaction id
 
@@ -90,7 +90,7 @@ def sync_download_file(file_name):
 	f.close()
 
 def sync_upload_file(file_name):
-	global CACHE_CHUNK_INFO
+	global CACHE_CHUNK_INFO,DIRTIES
 	true_local_file_name = ROOT_DIR + file_name
 	true_server_file_name = config.name_local_to_remote(file_name)
 	
@@ -101,7 +101,20 @@ def sync_upload_file(file_name):
 	
 	true_file_name = ROOT_DIR + file_name
 	f = open(true_file_name,'r')
-	content = simple_client_for_test.cache_write_file(config.name_local_to_remote(file_name), 0, f.read())
+	f_readed_content = f.read()
+	# loop over the file 
+	chunk_ids = []
+	contents = []
+	for start_file in range(0,len(f_readed_content),config.FILE_CHUNK_SIZE):
+		if DIRTIES.has_key(file_name) == False or (start_file//config.FILE_CHUNK_SIZE) in DIRTIES[file_name]:
+			#print '#??',start_file,DIRTIES
+			chunk_ids.append(start_file // config.FILE_CHUNK_SIZE)
+			contents.extend(f_readed_content[start_file:min(start_file+config.FILE_CHUNK_SIZE, len(f_readed_content))])
+	if len(chunk_ids) > 0:		
+		content = simple_client_for_test.cache_write_file_algined(config.name_local_to_remote(file_name), contents,chunk_ids)
+	print '##',file_name,chunk_ids
+	if DIRTIES.has_key(file_name):
+		DIRTIES[file_name] = []
 	f.close()
 	if CACHE_CHUNK_INFO.has_key(file_name):
 		del CACHE_CHUNK_INFO[file_name]
@@ -132,10 +145,11 @@ def create_file(file_name):
 def open_file(file_name,mode):
 	global CURRENT_OPEN_FILES
 	# force a download_file
+	DIRTIES[file_name] = []
 	if 'w' in mode:
 		#simple_cliet_for_test.cache_del_file(config.name_local_to_remote(file_name))
 		#create_file(file_name)
-		CURRENT_OPEN_FILES[file_name] = 'W'
+		CURRENT_OPEN_FILES[file_name] = 'W'		
 		return open(ROOT_DIR + file_name, 'w')
 	# read mode, I thought
 	sync_download_file(file_name)
@@ -165,14 +179,21 @@ def close_file(f,file_name):
 	sync_upload_file(file_name)
 	
 @lock_dec
-def read_file(f, file_name, start, size):
+def read_file(f, file_name, start, size = 0):
 	f.seek(start)
+	if size == 0:
+		return f.read()
 	return f.read(size)
 
 @lock_dec
 def write_file(f, file_name, start, str_to_write):
 	f.seek(start)
-	return f.write(str_to_write)
+	
+	start_block = start // config.FILE_CHUNK_SIZE
+	num = f.write(str_to_write)
+	end_block = (start + len(str_to_write)-1) // config.FILE_CHUNK_SIZE	
+	DIRTIES[file_name].extend(range(start_block,end_block+1));
+	return num
 	
 # do the synchronization, upload the files that has been changed or added
 # (CURRENTLY NOT DO, upload/download will only be done in the close function
@@ -227,6 +248,11 @@ if __name__ == "__main__":
 	except Exception as e:
 		print '216',e
 		pass
+	try:
+		del_file('pp.txt')
+	except Exception as e:
+		print '216',e
+		pass
 	create_file('wubaolin')
 	create_file('wubaolin2')
 	f1 = open_file('wubaolin','r+');
@@ -265,6 +291,37 @@ if __name__ == "__main__":
 	assert read_file(f2,'wubaolin2',1020,len('HAHAHAHA2nd')) == 'HAHAHAHA2nd'
 	
 	assert read_file(f2,'wubaolin2',0,10) == '0' * 10
+	
+	print 'testing the pride-and-prejudice.......'
+	create_file('pp.txt')
+	fpp = open_file('pp.txt','r+')
+	write_file(fpp,'pp.txt',0,open('/tmp/pp.txt').read())
+	close_file(fpp,'pp.txt')
+	os.remove(ROOT_DIR + 'pp.txt')
+	
+	synchronize()
+	fpp = open_file('pp.txt','r+')
+	tmp = read_file(fpp,'pp.txt',0)
+	tmp2 = open('/tmp/pp.txt').read()
+	assert(all([tmp[i] == tmp2[i] for i in range(len(tmp2))]))	
+	close_file(fpp,'pp.txt')
+	
+	print 'write some place in the middle of p-and-p.txt..., should only update small number of segments'
+	TEST_NUM = 1037
+	START = 1012
+	fpp = open_file('pp.txt','r+')
+	write_file(fpp,'pp.txt', START, 'H' * TEST_NUM)
+	close_file(fpp,'pp.txt');
+	
+	if(os.path.exists(ROOT_DIR + 'pp.txt')):
+		os.remove(ROOT_DIR + 'pp.txt')
+	synchronize();
+	assert(os.path.exists(ROOT_DIR + 'pp.txt'))
+	fpp = open_file('pp.txt','r+')
+	tmp = read_file(fpp,'pp.txt',0)
+	assert(all([tmp[START+i] == 'H' for i in range(TEST_NUM)]))
+	close_file(fpp,'pp.txt')
+	
 	print 'Basic Cache Client Passed!'
 	
 	# test1 -----------------, download/modify/upload/download/check

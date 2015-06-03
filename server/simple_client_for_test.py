@@ -23,6 +23,15 @@ SERVERS.append( { \
 		'delete_file' :  local_api.lib_local.delete_file, \
 		'upload_file' : local_api.lib_local.upload_file
 	})
+SERVERS.append( { \
+		'id':1, \
+		'name' : 'Local', \
+		'server_object' : local_api.lib_local.create_service_object('wbl2'), \
+		'get_all_file_names' : local_api.lib_local.get_all_file_names, \
+		'download_file' : local_api.lib_local.download_file, \
+		'delete_file' :  local_api.lib_local.delete_file, \
+		'upload_file' : local_api.lib_local.upload_file
+	})
 '''
 SERVERS.append( { \
 	'id':1, \
@@ -125,7 +134,7 @@ def cache_create_file(file_name):
 	file_name = name_local_to_remote(file_name)
 	buf = simple_httpserver.handle_create_file({'file_name':[file_name]})
 	buf = buf.split(':')
-	#print buf
+	print buf
 	if buf[0] != '0':
 		raise 'File: ' + file_name + ' could not be created! ' + buf[1]
 	trans_id = int(buf[1])
@@ -188,7 +197,12 @@ def cache_read_file(file_name, start, size):
 		s = SERVERS[servers[chunk_index]]
 		s['download_file'](s['server_object'], target_file, '/tmp/' + local_file)
 		f = open('/tmp/' + local_file,'r')
-		mm = f.read()
+		
+		# Skip the first 8 bytes
+		version = f.read(4)
+		size = int(f.read(4))
+		
+		mm = f.read(size)
 		byte_file += mm
 		f.close()	
 	
@@ -241,6 +255,64 @@ def cache_write_file(file_name, start, to_write):
 			server = int(server)
 			s = SERVERS[server]
 			f = open('/tmp/hehe','w')
+			f.write(''.join(buf_to_write[index*config.FILE_CHUNK_SIZE:(index+1)*config.FILE_CHUNK_SIZE]))
+			f.close()
+			target_file_name = str(chunk_ids[index]) + '_' + file_name + '.trans' + str(trans_id)
+			#print target_file_name,"HEHEHE"
+			s['upload_file'](s['server_object'], '/tmp/hehe', target_file_name)
+			
+	buf = simple_httpserver.handle_commit_trans({'id':[trans_id]})
+	assert(buf[0] == '0')
+	
+# simplified version of cache_write_file, with specified chunk_id
+def cache_write_file_algined(file_name,to_write,chunk_ids):
+	assert len(to_write) > 0
+	size = len(to_write)
+	file_name = name_local_to_remote(file_name)
+	chunk_info = cache_get_chunks_info(file_name)
+	# chunk_ids = get_how_many_chunks_involved(file_name, start, size, False, chunk_info)
+	if len(chunk_ids) == 0:
+		raise ' Write error, chunk info wrong! Start:' + str(start) + ' Size:' + str(size)
+		
+	# a tmp buf to do the update
+	buf_to_write = ' ' * (len(chunk_ids) * config.FILE_CHUNK_SIZE)
+	buf_to_write = list(buf_to_write)
+		
+	s = 0 
+	e = s + size
+	iii = 0
+	while s < e:
+		buf_to_write[s] = to_write[iii]
+		s += 1
+		iii += 1
+		
+	sizes = [config.FILE_CHUNK_SIZE] * (1 + ((size-1) // config.FILE_CHUNK_SIZE))
+	if size % config.FILE_CHUNK_SIZE != 0:
+		sizes[-1] = size % config.FILE_CHUNK_SIZE
+
+	str_chunk_ids = [str(i) for i in chunk_ids]
+	str_chunk_sizes = ','.join([str(config.FILE_CHUNK_SIZE)] * len(chunk_ids))
+	#print str_chunk_sizes
+	buf = simple_httpserver.handle_write_file({'file_name':[file_name], 'chunk_ids':[','.join(str_chunk_ids)], 'chunk_size':[str_chunk_sizes]})
+	#print buf
+	assert(buf[0] == '0')
+	trans_id = int(buf.split(':')[1])
+	len_server = int(buf.split(':')[2])
+	servers = buf.split(':')[3:3+len_server]
+	
+	NUM_PER_SERVER = len_server / len(chunk_ids)
+	for index in range(len(chunk_ids)):
+		chunk_id = chunk_ids[index]
+		target_server = servers[NUM_PER_SERVER*index:(index+1)*NUM_PER_SERVER]
+		chunk_content = str(index) * config.FILE_CHUNK_SIZE
+		version = '0001'
+		size = '%04d'%(sizes[index])
+		for server in target_server:
+			server = int(server)
+			s = SERVERS[server]
+			f = open('/tmp/hehe','w')
+			f.write(version)
+			f.write(size)
 			f.write(''.join(buf_to_write[index*config.FILE_CHUNK_SIZE:(index+1)*config.FILE_CHUNK_SIZE]))
 			f.close()
 			target_file_name = str(chunk_ids[index]) + '_' + file_name + '.trans' + str(trans_id)

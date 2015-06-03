@@ -58,13 +58,20 @@ def abort_create_file(trans):
 
 # which server to put the file
 def choose_create_target_server(file_name):
+	#return range(len(meta_puller.SERVERS))
 	return [0]
 
 # where to put the file to write, 
 # if it already exist, put it in original server, 
 # else call choose_create_target_server
 def choose_write_target_server(file_name, chunks):
+	# simple enough for test
+	ss = len(meta_puller.SERVERS)
 	ret = []
+	for c in chunks:
+		ret.append(c % ss)
+	return ret
+	
 	for chunk in chunks:
 		if chunk < meta_puller.get_chunks_id(file_name):
 			original_location = meta_puller.get_file_chunk_info(file_name,chunk)
