@@ -22,6 +22,14 @@ trans.Init()
 # pulling datas from cloud storage
 meta_puller.init_config()
 meta_puller.pull_meta()
+
+def request_fail_server(server_id):
+	meta_puller.report_fail(server_id)
+	return '0'
+
+def request_ok_server(server_id):
+	meta_puller.ok_server(server_id)
+	return '0'
  
 def get_all_files(folder_name):
 	ret = []

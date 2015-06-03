@@ -117,7 +117,7 @@ def cache_get_chunks_info(file_name):
 	param['request_chunk_index'] = ['0']
 	buf = simple_httpserver.handle_meta_file_info(param)
 	buf = buf.split(':')
-	assert(buf[0] == '0')
+	assert buf[0] == '0',buf
 	file_name = buf[1]
 	file_size = buf[2]
 	is_folder = buf[3]

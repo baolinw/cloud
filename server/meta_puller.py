@@ -8,6 +8,7 @@ import dropbox_api.lib_dropbox
 import config
 import local_api
 import local_api.lib_local
+import random
 
 # server descriptor 
 # every server is a dict, having an id, name, some function pointers
@@ -80,6 +81,8 @@ def pull_meta(DELETE_NON_FINISH_TRANSCATION = False):
 	map_file_name_to_server = {}
 	# Get all the files
 	for server in SERVERS:
+		if server['live'] == 0:
+			continue
 		all_files = server['get_all_file_names']((server['server_object']))
 		for file_name,file_size in all_files:
 			if file_name.split('.')[-1].startswith('trans') and DELETE_NON_FINISH_TRANSCATION == True:
@@ -232,14 +235,92 @@ def del_file(file_name):
 			
 	del FILES[file_name]
 	return 0,'Success'
+
+def ok_server(server_id):
+	global SERVERS,FILES
+	assert server_id < len(SERVERS)
+	if SERVERS[server_id]['live'] == 1:
+		return
+	SERVERS[server_id]['live'] = 1
+	pull_meta(False)
+	# detect whether the files is not up to date now, the log system should come ...
+	for file_name in FILES.keys():
+		f = FILES[file_name]		
+		for chunk_id in f.keys():
+			if chunk_id == 'file_size':
+				continue			
+			servers = [i[0] for i in f[chunk_id]]
+			# get the update id from
+			updated_id_servers = get_last_update_id(file_name,chunk_id)
+			in_date = updated_id_servers
+			out_of_dated = [i for i in servers if i not in in_date]
+			if len(in_date) >= config.FILE_DUPLICATE_NUM:
+				# just del
+				target_file = str(chunk_id) + '_' + file_name
+				s['delete_file'](s['server_object'], target_file)
+				continue
+			# migrate
+			fake_servers = servers
+			fake_servers.append(server_id)
+			migration(file_name, chunk_id, fake_servers)
 	
+
 # file_name can be '', report the server's who failure 
-def report_fail(server_id, file_name, chunk_file):
-	pass
+def report_fail(server_id, reported_file_name = '', chunk_file = 0):
+	global SERVERS,FILES
+	# current implementation is very slow, it won't allow other access from clients too
+	if reported_file_name != '':
+		assert False,'Not implemented by single reporting'
+	assert server_id < len(SERVERS)
+	if SERVERS[server_id]['live'] == 0:
+		return
+	SERVERS[server_id]['live'] = 0
+	# find those originally in the target server_id
+	for file_name in FILES.keys():
+		f = FILES[file_name]
+		for chunk_id in f.keys():
+			if chunk_id == 'file_size':
+				continue
+			servers = [i[0] for i in f[chunk_id]]
+			if server_id not in servers:
+				continue
+			migration(file_name,chunk_id,servers)
+	# re-get the server contents
+	pull_meta(False)
 	
 # migrate all the files originally in the server_id, to other servers
-def migration(server_id):
-	pass
+def migration(file_name,chunk_id,servers):
+	#print 'In migration()', file_name, str(chunk_id), servers
+	global SERVERS
+	# make those -1 
+	# how many alive now
+	alives = 0
+	for i in range(len(servers)):
+		if SERVERS[servers[i]]['live'] == 0:
+			servers[i] = -1
+		else:
+			alives += 1
+	remain = config.FILE_DUPLICATE_NUM - alives
+	if remain < 0:
+		return
+	# choose the first one to replicate
+	source = -1
+	for i in range(len(servers)):
+		if servers[i] != -1:
+			source = servers[i]
+			break
+	if source == -1:
+		assert False, 'File Lost !'
+	candidates = [i for i in range(len(SERVERS)) if i not in servers and SERVERS[i]['live'] == 1]
+	random.shuffle(candidates)
+	candidates = candidates[0:min(len(candidates),remain)]
+	# download the original file
+	s = SERVERS[source]
+	target_file = str(chunk_id) + '_' + file_name
+	s['download_file'](s['server_object'], target_file, '/tmp/' + 'for_fix_up')
+	for m in candidates:
+		s = SERVERS[m]
+		s['upload_file'](s['server_object'], '/tmp/' + 'for_fix_up',  target_file)
 	
 # we just simulate some hard-coded server joining event
 def server_join_test1():

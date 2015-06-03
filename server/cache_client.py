@@ -6,6 +6,7 @@ from threading import Lock # for updating
 import config
 import os
 import os.path
+import simple_httpserver
 
 CACHE_FILES = None;
 lock = Lock()
@@ -50,9 +51,11 @@ def list_all_files(force_update = False):
 		CACHE_FILES = simple_client_for_test.cache_list_all_files()
 	return CACHE_FILES		
 
-def get_chunks_info(file_name):
+def get_chunks_info(file_name,force_update = False):
 	global CACHE_CHUNK_INFO
 	file_name = config.name_local_to_remote(file_name)
+	if force_update == True:
+		CACHE_CHUNK_INFO = {}
 	if CACHE_CHUNK_INFO.has_key(file_name) == False:
 		CACHE_CHUNK_INFO[file_name] = simple_client_for_test.cache_get_chunks_info(file_name)
 	#print CACHE_CHUNK_INFO[file_name]
@@ -236,7 +239,7 @@ def synchronize():
 
 	
 if __name__ == "__main__":
-	# test 0 ----------------, create a file, write to it, sync, read, check
+	# test 0 ----------------, create a file, write to it, sync, read, check, Only 3 servers are allowed!!!!!!!!
 	Mount()
 	try:
 		del_file('wubaolin')		
@@ -323,6 +326,91 @@ if __name__ == "__main__":
 	close_file(fpp,'pp.txt')
 	
 	print '\033[1;32;40mBasic Cache Client Passed!\033[0m '
+	
+	FAIL_1 = 2
+	print 'Make server ',str(FAIL_1), ' failed '
+	simple_httpserver.handle_fail_server({'server_id':str(FAIL_1)})
+	
+	# try to get meta infos, they should be both appearing in 0 and 1,
+	for file_name in list_all_files(True)['files']:
+		chunks = get_chunks_info(file_name,True)		
+		for id in chunks.keys():
+			if id == 'file_size':
+				continue
+			#print chunks[id]
+			ids = chunks[id]
+			ids.sort()
+			assert len(ids) == 2 and ids[0] != FAIL_1 and ids[1] != FAIL_1 and ids[0] != ids[1],str(ids) + ' ' + file_name
+			
+	print '\033[1;32;40mServer fail one Passed!\033[0m '
+	
+	FAIL_2 = 0
+	print 'Make server ',str(FAIL_2),' failed!'
+	simple_httpserver.handle_fail_server({'server_id':str(FAIL_2)})
+	
+	# try to get meta infos,
+	for file_name in list_all_files(True)['files']:
+		chunks = get_chunks_info(file_name,True)		
+		for id in chunks.keys():
+			if id == 'file_size':
+				continue
+			#print chunks[id]
+			ids = chunks[id]
+			ids.sort()
+			assert len(ids) == 1 and ids[0] != FAIL_1 and ids[0] != FAIL_2
+			
+	print '\033[1;32;40mServer fail two Passed!\033[0m '
+	
+	print 'make server ', str(FAIL_2), ' ok'
+	simple_httpserver.handle_ok_server({'server_id':str(FAIL_2)})
+	
+	# try to get meta infos, they should be both appearing in 0 and 1,
+	for file_name in list_all_files(True)['files']:
+		chunks = get_chunks_info(file_name,True)		
+		for id in chunks.keys():
+			if id == 'file_size':
+				continue
+			#print chunks[id]
+			ids = chunks[id]
+			ids.sort()
+			assert len(ids) >= 2 and ids[0] != FAIL_1 and ids[1] != FAIL_1
+			
+	print '\033[1;32;40mServer fail two Passed!\033[0m '
+	
+	print 'make server ', str(FAIL_2), ' fail agin'
+	simple_httpserver.handle_fail_server({'server_id':str(FAIL_2)})
+	
+	# try to get meta infos,
+	for file_name in list_all_files(True)['files']:
+		chunks = get_chunks_info(file_name,True)		
+		for id in chunks.keys():
+			if id == 'file_size':
+				continue
+			#print chunks[id]
+			ids = chunks[id]
+			ids.sort()
+			assert len(ids) == 1 and ids[0] != FAIL_1 and ids[0] != FAIL_2
+			
+	print '\033[1;32;40mServer fail Second time Passed!\033[0m '
+	
+	print 'make server ', str(FAIL_1), 'ok'
+	print 'make server ', str(FAIL_2), 'ok'
+	simple_httpserver.handle_ok_server({'server_id':str(FAIL_1)})
+	simple_httpserver.handle_ok_server({'server_id':str(FAIL_2)})
+	
+	for file_name in list_all_files(True)['files']:
+		chunks = get_chunks_info(file_name,True)		
+		for id in chunks.keys():
+			if id == 'file_size':
+				continue
+			#print chunks[id]
+			ids = chunks[id]
+			ids.sort()
+			assert len(ids) >= 2
+			
+			
+	print 'Next test is for single step fail in client-----------------'
+	
 	
 	# test1 -----------------, download/modify/upload/download/check
 	# at first download the file of tutu2.txt
