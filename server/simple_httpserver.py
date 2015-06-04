@@ -94,6 +94,13 @@ def handle_del_file(param):
 def handle_commit_trans(param):
 	trans_id = int(param['id'][0])
 	return file_handler.handle_commit(trans_id,' ')
+	
+def handle_ft_mode(param):
+	mode_id = int(param['mode'][0])
+	return file_handler.handle_ft_mode(mode_id)
+	
+def handle_resume(param):
+	return file_handler.handle_resume()
 
 class TestHTTPHandle(BaseHTTPRequestHandler):   
     def do_GET(self):
@@ -129,6 +136,10 @@ class TestHTTPHandle(BaseHTTPRequestHandler):
 			buf = handle_fail_server(param)
 		if cmd == 'ok_server':
 			buf = handle_ok_server(param)
+		if cmd == 'change_ft_mode':
+			buf = handle_ft_mode(param)
+		if cmd == 'resume':
+			buf = handle_resume(param)
 	
 		self.protocal_version = "HTTP/1.1"
 		#buf = convert_files_info_to_xml(FILES)

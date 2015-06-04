@@ -244,6 +244,8 @@ if __name__ == "__main__":
 	Mount()
 	try:
 		os.remove(log.WRITE_LOG_FILE);
+		os.remove('local_write_log');
+		os.remove('server_write_log');
 	except Exception as e:
 		pass
 	try:
@@ -425,11 +427,73 @@ if __name__ == "__main__":
 			ids.sort()
 			assert len(ids) >= 2
 			
-	print '\033[1;32;40mServer bring up again Passed!\033[0m '		
-	print 'Next test is for single step fail in client-----------------'
-	print '1st test case, write without commit, but partial write'
+	print '\033[1;32;40mServer bring up again Passed!\033[0m '	
 	
+	print 'Next test is for single step fails -----------------'
+	print '1st test case, write without update, no commit'
+	simple_client_for_test.WRITE_FAIL_MODE = 1
+	fpp = open_file('pp.txt','r+')
+	write_file(fpp,'pp.txt', 1023, 'C' * 5)
+	close_file(fpp,'pp.txt');
 	
+	fpp = open_file('pp.txt','r+')
+	wc = read_file(fpp,'pp.txt', 1023, 5)
+	assert all([wc[i] != 'C' for i in range(len(wc))])
+	close_file(fpp,'pp.txt');
+	print '\033[1;32;40m FT single test 1 Passed!\033[0m '	
+	
+	print '2nd test case, write partial, no commit'
+	simple_client_for_test.WRITE_FAIL_MODE = 2
+	fpp = open_file('pp.txt','r+')
+	write_file(fpp,'pp.txt', 1023, 'E' * 5)
+	close_file(fpp,'pp.txt');
+	
+	fpp = open_file('pp.txt','r+')
+	wc = read_file(fpp,'pp.txt', 1023, 5)
+	assert all([wc[i] != 'C' for i in range(len(wc))])
+	close_file(fpp,'pp.txt');	
+	
+	print '\033[1;32;40m FT single test 2 Passed!\033[0m '	
+	
+	simple_client_for_test.WRITE_FAIL_MODE = 0
+	simple_client_for_test.redo_logs()	
+	fpp = open_file('pp.txt','r+')
+	wc = read_file(fpp,'pp.txt',1023,5)
+	assert all([wc[i] == 'E' for i in range(len(wc))])
+	close_file(fpp,'pp.txt');
+	print '\033[1;32;40m FT single test 3 Passed!\033[0m '	
+	
+	print '4th test case, write all , commit, server fails at the begining of writing'
+	simple_httpserver.handle_ft_mode({'mode':str(1)})
+	fpp = open_file('pp.txt','r+')
+	write_file(fpp,'pp.txt', 2040, 'W' * 5)
+	close_file(fpp,'pp.txt');
+	fpp = open_file('pp.txt','r+')
+	wc = read_file(fpp,'pp.txt', 2040, 5)
+	assert all([wc[i] != 'W' for i in range(len(wc))])
+	close_file(fpp,'pp.txt');	
+	
+	print '\033[1;32;40m FT single test 4 Passed!\033[0m '	
+	
+	print '5th test case, write all , commit, server fails after one renaming'
+	simple_httpserver.handle_ft_mode({'mode':str(2)})
+	fpp = open_file('pp.txt','r+')
+	write_file(fpp,'pp.txt', 1010, 'Z' * 5)
+	close_file(fpp,'pp.txt');
+	# resume the server
+	simple_httpserver.handle_ft_mode({'mode':str(0)})
+	simple_httpserver.handle_resume({})
+	
+	fpp = open_file('pp.txt','r+')
+	wc = read_file(fpp,'pp.txt', 1010, 5)
+	assert all([wc[i] == 'Z' for i in range(len(wc))])
+	wc = read_file(fpp,'pp.txt', 2040, 5)
+	assert all([wc[i] == 'W' for i in range(len(wc))])
+	close_file(fpp,'pp.txt');	
+	
+	print '\033[1;32;40m FT single test 5 Passed!\033[0m '	
+	
+	print 'Some corner case for read/write-----------'
 	# test1 -----------------, download/modify/upload/download/check
 	# at first download the file of tutu2.txt
 	'''

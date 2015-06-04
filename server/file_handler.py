@@ -7,6 +7,8 @@ import trans
 import meta_puller
 import config
 import random
+import pickle
+import os
 
 # the "transaction" is implemented as follows:
 # using some trick to give the client some files to handle, 
@@ -18,6 +20,9 @@ WriteFileLock = {}
 ReadFileLock = {}
 
 trans.Init()
+
+SERVER_LOG_FILE_NAME = 'server_write_log'
+FT_MODE = 0 #0: ok, 1 no commit at all, 2 commit only one
 
 # pulling datas from cloud storage
 meta_puller.init_config()
@@ -155,7 +160,8 @@ def request_create_file(file_name):
 	
 	# lock, we assume single thread mode in server, so never mind the lock here..
 	if CreatFileLock.has_key(file_name):
-		return '-1:File Creation Pending'
+		if config.IGNORE_LOCK == False:
+			return '-1:File Creation Pending'
 	if file_name in meta_puller.get_all_file_names():
 		return '-2:File already exist!'
 	CreatFileLock[file_name] = 0
@@ -181,15 +187,18 @@ def request_write_file(file_name,chunks, chunk_sizes):
 		return '-2:file Not exist'
 		
 	# first check the readFileLock
+	
 	if ReadFileLock.has_key(file_name):
 		for chunk in chunks:
 			if chunk in ReadFileLock[file_name].keys():
-				return '-1:Read Locked by others'
+				if config.IGNORE_LOCK == False:
+					return '-1:Read Locked by others'
 		
 	if WriteFileLock.has_key(file_name):
 		for chunk in chunks:
 			if chunk in WriteFileLock[file_name].keys():
-				return '-1:Write Locked by others'
+				if config.IGNORE_LOCK == False:
+					return '-1:Write Locked by others'
 				
 	if not WriteFileLock.has_key(file_name):
 		WriteFileLock[file_name] = {}
@@ -224,7 +233,8 @@ def request_read_file(file_name,chunks):
 	if WriteFileLock.has_key(file_name):
 		for chunk in chunks:
 			if chunk in WriteFileLock[file_name].keys():
-				return '-1:Write Locked by others'
+				if config.IGNORE_LOCK == False:
+					return '-1:Write Locked by others'
 				
 	if not ReadFileLock.has_key(file_name):
 		ReadFileLock[file_name] = {}
@@ -277,18 +287,71 @@ def commit_create_file(trans_id):
 	trans.DelTrans(trans_id)	
 	return '0'
 	
+def handle_ft_mode(mode_id):
+	global FT_MODE
+	FT_MODE = mode_id
+	return '0'
+	
+def handle_resume():
+	global FT_MODE,SERVER_LOG_FILE_NAME
+	logs = pickle.load(open(SERVER_LOG_FILE_NAME,'r'))
+	# [trans_id,file_name,chunks,chunk_sizes,target_servers,finished_servers,status]
+	for index in range(len(logs)):
+		m = logs[index]
+		trans_id,file_name,chunks,chunk_sizes,target_servers, finished_servers, status = m
+		if status != 1:
+			remain = [i for i in target_servers if i not in finished_servers]
+			meta_puller.update_file_by_renaming(trans_id, file_name, chunks, chunk_sizes, remain)			
+			logs[index][-2] = target_servers
+			logs[index][-1] = 1
+			f = open(SERVER_LOG_FILE_NAME,'w')
+			pickle.dump(logs,f)
+			f.close()
+	FT_MODE = 0
+	return '0'
+	
 # commit the write file
+# the log file looks like [trans_id,file_name,chunks,chunk_sizes,target_servers,finished_servers,status]
 def commit_write_file(trans_id):
+	global SERVER_LOG_FILE_NAME
 	if trans.has_key(trans_id) == False or trans.get_key(trans_id) == None:
 		return '-1:' + 'No such Trans:' + str(trans_id)
+	if os.path.exists(SERVER_LOG_FILE_NAME) == False:
+		f = open(SERVER_LOG_FILE_NAME,'w')
+		pickle.dump([],f)
+		f.close()
+			
 	Trans = trans.get_key(trans_id)
-	# extract the transaction infomation
+	# extract the transaction information
 	file_name = Trans[1]
 	target_servers = Trans[2]
 	chunks = Trans[3]
 	chunk_sizes = Trans[4]
 	
-	meta_puller.update_file_by_renaming(trans_id, file_name, chunks, chunk_sizes, target_servers)
+	f = open(SERVER_LOG_FILE_NAME,'r')
+	logs = pickle.load(f)
+	f.close()
+	logs.append([trans_id,file_name,chunks,chunk_sizes,target_servers,[],0])
+	f = open(SERVER_LOG_FILE_NAME,'w')
+	pickle.dump(logs,f)
+	f.close()
+	
+	global FT_MODE
+	if FT_MODE == 0:
+		meta_puller.update_file_by_renaming(trans_id, file_name, chunks, chunk_sizes, target_servers)
+		logs[-1][-2] = target_servers
+		logs[-1][-1] = 1		
+	elif FT_MODE == 1:
+		pass
+	else: #2, partial
+		target_servers = target_servers[0:1]
+		meta_puller.update_file_by_renaming(trans_id, file_name, chunks, chunk_sizes, target_servers)
+		logs[-1][-2] = target_servers
+		logs[-1][-1] = 0
+
+	f = open(SERVER_LOG_FILE_NAME,'w')
+	pickle.dump(logs,f)
+	f.close()		
 	
 	for c in chunks:
 		del WriteFileLock[file_name][c]

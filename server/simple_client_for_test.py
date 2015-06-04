@@ -14,6 +14,8 @@ from config import name_local_to_remote;
 from config import name_remote_to_local;
 # I need the service object to do actual upload/download
 SERVERS = []
+WRITE_FAIL_MODE = 0 # 0 normal, 1: no update no commit and no error recovery, only hold, 2: partial update without commit, 
+# we don't do anything relating to CREATE fail, we don't have time to do it, just use the write to illustrate it
 SERVERS.append( { \
 		'id':0, \
 		'live':1, \
@@ -193,6 +195,7 @@ def cache_read_file(file_name, start, size):
 		raise ' Read error, chunk info wrong!'
 	str_chunk_ids = [str(i) for i in chunk_ids]
 	buf = simple_httpserver.handle_read_file({'file_name':[file_name], 'chunk_ids':[','.join(str_chunk_ids)]})
+	print buf
 	assert(buf[0] == '0')
 	
 	tmp = buf.split(':')
@@ -276,9 +279,42 @@ def cache_write_file(file_name, start, to_write):
 	buf = simple_httpserver.handle_commit_trans({'id':[trans_id]})
 	assert(buf[0] == '0')
 	
+import pickle
+WRITE_LOG_FILE = 'local_write_log'
+
+def redo_logs():
+	global WRITE_FAIL_MODE
+	WRITE_FAIL_MODE = 0
+	logs = pickle.load(open(WRITE_LOG_FILE,'r'))
+	#logs.append([file_name,to_write,chunk_ids,[],0])
+	for index in range(len(logs)):
+		m = logs[index]
+		file_name,to_write,chunk_ids,tmp,status = m
+		if status != 1:
+			cache_write_file_algined(file_name,to_write,chunk_ids,False)
+			logs[index] = [file_name,'',chunk_ids,[],1]
+			f = open(WRITE_LOG_FILE,'w')
+			pickle.dump(logs,f)
+			f.close()
+
+# the write log is something like:
+# [ [file_name,to_write,chunk_ids,chunk_ids_wroted,status], ... ]
 # simplified version of cache_write_file, with specified chunk_id
-def cache_write_file_algined(file_name,to_write,chunk_ids):
+def cache_write_file_algined(file_name,to_write,chunk_ids,log_it = True):
+	global WRITE_FAIL_MODE
 	assert len(to_write) > 0
+	# save the transactions now
+	if os.path.exists(WRITE_LOG_FILE) == False:
+		f = open(WRITE_LOG_FILE,'w')
+		pickle.dump([],f)
+		f.close()
+	if log_it:
+		logs = pickle.load(open(WRITE_LOG_FILE,'r'))
+		logs.append([file_name,to_write,chunk_ids,[],0])
+		f = open(WRITE_LOG_FILE,'w')
+		pickle.dump(logs,f)
+		f.close()
+	
 	size = len(to_write)
 	file_name = name_local_to_remote(file_name)
 	chunk_info = cache_get_chunks_info(file_name)
@@ -319,7 +355,13 @@ def cache_write_file_algined(file_name,to_write,chunk_ids):
 		chunk_content = str(index) * config.FILE_CHUNK_SIZE
 		version = '0001'
 		size = '%04d'%(sizes[index])
+		count = 0
 		for server in target_server:
+			if WRITE_FAIL_MODE == 1:
+				continue
+			if WRITE_FAIL_MODE == 2 and count >= 1:
+				continue
+			count = count + 1
 			server = int(server)
 			s = SERVERS[server]
 			f = open('/tmp/hehe','w')
@@ -331,8 +373,17 @@ def cache_write_file_algined(file_name,to_write,chunk_ids):
 			#print target_file_name,"HEHEHE"
 			s['upload_file'](s['server_object'], '/tmp/hehe', target_file_name)
 			
-	buf = simple_httpserver.handle_commit_trans({'id':[trans_id]})
-	assert(buf[0] == '0')
+	if WRITE_FAIL_MODE == 0:			
+		buf = simple_httpserver.handle_commit_trans({'id':[trans_id]})
+		assert(buf[0] == '0')
+		if log_it:
+			logs = pickle.load(open(WRITE_LOG_FILE,'r'))
+			#logs.append([file_name,to_write,chunk_ids,[],0])
+			logs[-1][4] = 1
+			logs[-1][1] = ''
+			f = open(WRITE_LOG_FILE,'w')
+			pickle.dump(logs,f)
+			f.close()
 	
 #### All the read/write functions should be only called by the Cache, clients use the api to write the file
 # in local directory, the Cache will update the file and do some synchronization periodly
