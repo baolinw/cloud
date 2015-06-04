@@ -81,6 +81,7 @@ def pull_meta(DELETE_NON_FINISH_TRANSCATION = False):
 	# map from file_name to a map ( chunk_id to a list of server id)
 	map_file_name_to_server = {}
 	# Get all the files
+	#logs = pickle.load(open(config.SERVER_LOG_FILE_NAME,'r'))
 	for server in SERVERS:
 		if server['live'] == 0:
 			continue
@@ -88,6 +89,9 @@ def pull_meta(DELETE_NON_FINISH_TRANSCATION = False):
 		for file_name,file_size in all_files:
 			if file_name.split('.')[-1].startswith('trans') and DELETE_NON_FINISH_TRANSCATION == True:
 				raise "Not implemented!"
+			if file_name.split('.')[-1].startswith('trans'):
+				#ignore
+				continue					
 			
 			chunk_id = int(file_name.split('_')[0])
 			file_name = '_'.join(file_name.split('_')[1:])			
@@ -270,7 +274,7 @@ def ok_server(server_id):
 			# migrate
 			if len(in_date) < config.FILE_DUPLICATE_NUM:
 				migration_to(file_name, chunk_id, in_date,server_id)
-	pull_meta(True)
+	pull_meta(False)
 	
 
 # file_name can be '', report the server's who failure 

@@ -8,6 +8,7 @@ import os
 import os.path
 import simple_httpserver
 import log
+import sys
 
 CACHE_FILES = None;
 lock = Lock()
@@ -238,9 +239,11 @@ def synchronize():
 	# update the CACHE_CHUNK_INFO
 	list_all_files(True)	
 
+import sys
 	
-if __name__ == "__main__":
-	# test 0 ----------------, create a file, write to it, sync, read, check, Only 3 servers are allowed!!!!!!!!
+	
+def test():
+	# Test ################################################################################
 	Mount()
 	try:
 		os.remove(log.WRITE_LOG_FILE);
@@ -494,6 +497,10 @@ if __name__ == "__main__":
 	print '\033[1;32;40m FT single test 5 Passed!\033[0m '	
 	
 	print 'Some corner case for read/write-----------'
+	# create empty 
+	
+	
+	
 	# test1 -----------------, download/modify/upload/download/check
 	# at first download the file of tutu2.txt
 	'''
@@ -513,3 +520,12 @@ if __name__ == "__main__":
 	ftmp.close()
 	'''
 
+if __name__ == "__main__":
+	# test 0 ----------------, create a file, write to it, sync, read, check, Only 3 servers are allowed!!!!!!!!
+	print sys.argv
+	# I use this file as the core function to be called by the File System, Write as little code in C++ as possible
+	if len(sys.argv) == 1:
+		test()
+		sys.exit(0)
+	
+	command = 1

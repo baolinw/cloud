@@ -21,7 +21,7 @@ ReadFileLock = {}
 
 trans.Init()
 
-SERVER_LOG_FILE_NAME = 'server_write_log'
+SERVER_LOG_FILE_NAME = config.SERVER_LOG_FILE_NAME
 FT_MODE = 0 #0: ok, 1 no commit at all, 2 commit only one
 
 # pulling datas from cloud storage
