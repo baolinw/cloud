@@ -7,6 +7,7 @@ import config
 import os
 import os.path
 import simple_httpserver
+import log
 
 CACHE_FILES = None;
 lock = Lock()
@@ -242,6 +243,10 @@ if __name__ == "__main__":
 	# test 0 ----------------, create a file, write to it, sync, read, check, Only 3 servers are allowed!!!!!!!!
 	Mount()
 	try:
+		os.remove(log.WRITE_LOG_FILE);
+	except Exception as e:
+		pass
+	try:
 		del_file('wubaolin')		
 	except Exception as e:
 		print '211',e
@@ -359,6 +364,11 @@ if __name__ == "__main__":
 			ids.sort()
 			assert len(ids) == 1 and ids[0] != FAIL_1 and ids[0] != FAIL_2
 			
+	# re write the whole file, so that after resuming, it will also work now
+	fpp = open_file('pp.txt','r+')
+	write_file(fpp,'pp.txt', 0, 'M' * 5)
+	close_file(fpp,'pp.txt');
+			
 	print '\033[1;32;40mServer fail two Passed!\033[0m '
 	
 	print 'make server ', str(FAIL_2), ' ok'
@@ -375,6 +385,13 @@ if __name__ == "__main__":
 			ids.sort()
 			assert len(ids) >= 2 and ids[0] != FAIL_1 and ids[1] != FAIL_1
 			
+	print 'reread the file modified between these change!'
+	fpp = open_file('pp.txt','r+')
+	wc = read_file(fpp,'pp.txt', 0, 6)
+	assert all([wc[i] == 'M' for i in range(len(wc)-1)])
+	assert wc[-1] != 'M'
+	close_file(fpp,'pp.txt');
+	print '\033[1;32;40mServer write between one resumes Passed!\033[0m '
 	print '\033[1;32;40mServer fail two Passed!\033[0m '
 	
 	print 'make server ', str(FAIL_2), ' fail agin'
@@ -403,13 +420,14 @@ if __name__ == "__main__":
 		for id in chunks.keys():
 			if id == 'file_size':
 				continue
-			#print chunks[id]
+			#print str(id),'%',file_name,'%',chunks[id]
 			ids = chunks[id]
 			ids.sort()
 			assert len(ids) >= 2
 			
-			
+	print '\033[1;32;40mServer bring up again Passed!\033[0m '		
 	print 'Next test is for single step fail in client-----------------'
+	print '1st test case, write without commit, but partial write'
 	
 	
 	# test1 -----------------, download/modify/upload/download/check

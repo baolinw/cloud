@@ -9,6 +9,7 @@ import config
 import local_api
 import local_api.lib_local
 import random
+import log
 
 # server descriptor 
 # every server is a dict, having an id, name, some function pointers
@@ -148,6 +149,7 @@ def create_file_by_renaming(trans_id,file_name, servers):
 		# currently we only download and upload, further will update it if the service does allow "copy" 
 		s['download_file'](s['server_object'],tmp_file_name, '/tmp/' + tmp_file_name)
 		s['upload_file'](s['server_object'], '/tmp/' + tmp_file_name, '0_' + file_name);
+		log.log_write(server,file_name,0,trans_id)
 		s['delete_file'](s['server_object'], tmp_file_name);
 		FILES[file_name][0].append([server,config.FILE_CHUNK_SIZE])
 		#print 'The upload', '/tmp/' + tmp_file_name, '0_' + file_name
@@ -166,6 +168,7 @@ def update_file_by_renaming(trans_id,file_name,chunk_ids, chunk_sizes, servers):
 			s = SERVERS[server]
 			s['download_file'](s['server_object'],to_get_file_name, '/tmp/' + to_get_file_name)
 			s['upload_file'](s['server_object'], '/tmp/' + to_get_file_name, overide_file_name);
+			log.log_write(server,file_name,chunk_ids[index],trans_id)
 			s['delete_file'](s['server_object'], to_get_file_name);
 			# update the info in FILES
 			if FILES[file_name].has_key(index):
@@ -249,20 +252,25 @@ def ok_server(server_id):
 		for chunk_id in f.keys():
 			if chunk_id == 'file_size':
 				continue			
+			if chunk_id == 0 and file_name == 'pp.txt':
+				a = 10
 			servers = [i[0] for i in f[chunk_id]]
 			# get the update id from
-			updated_id_servers = get_last_update_id(file_name,chunk_id)
-			in_date = updated_id_servers
-			out_of_dated = [i for i in servers if i not in in_date]
-			if len(in_date) >= config.FILE_DUPLICATE_NUM:
+			updated_id_servers = log.get_last_update_id(file_name,chunk_id)
+			in_date = [i for i in updated_id_servers if SERVERS[i]['live'] == 1]
+			out_of_dated = [i for i in servers if i not in in_date and SERVERS[i]['live'] == 1]
+			if server_id in out_of_dated:
 				# just del
 				target_file = str(chunk_id) + '_' + file_name
+				s = SERVERS[server_id]
+				if server_id == 0 and target_file == '0_pp.txt':
+					target_file = '0_pp.txt'
+				#print 'DEL: server:', str(server_id),' ', target_file
 				s['delete_file'](s['server_object'], target_file)
-				continue
 			# migrate
-			fake_servers = servers
-			fake_servers.append(server_id)
-			migration(file_name, chunk_id, fake_servers)
+			if len(in_date) < config.FILE_DUPLICATE_NUM:
+				migration_to(file_name, chunk_id, in_date,server_id)
+	pull_meta(True)
 	
 
 # file_name can be '', report the server's who failure 
@@ -318,9 +326,26 @@ def migration(file_name,chunk_id,servers):
 	s = SERVERS[source]
 	target_file = str(chunk_id) + '_' + file_name
 	s['download_file'](s['server_object'], target_file, '/tmp/' + 'for_fix_up')
+	write_version = log.get_write_version(source,file_name,chunk_id)
 	for m in candidates:
 		s = SERVERS[m]
 		s['upload_file'](s['server_object'], '/tmp/' + 'for_fix_up',  target_file)
+		log.log_write(m, file_name,chunk_id,write_version)
+		
+# migrate all the files originally in the server_id, to other servers
+def migration_to(file_name,chunk_id,the_from,the_to):
+	#print 'In migration222()', file_name, str(chunk_id), 'from ',the_from,' to ',the_to
+	global SERVERS
+	
+	# download the original file
+	s = SERVERS[the_from[0]]
+	target_file = str(chunk_id) + '_' + file_name
+	s['download_file'](s['server_object'], target_file, '/tmp/' + 'for_fix_up')
+	write_version = log.get_write_version(the_from[0],file_name,chunk_id)
+	m = the_to
+	s = SERVERS[m]
+	s['upload_file'](s['server_object'], '/tmp/' + 'for_fix_up',  target_file)
+	log.log_write(m, file_name,chunk_id,write_version)
 	
 # we just simulate some hard-coded server joining event
 def server_join_test1():
