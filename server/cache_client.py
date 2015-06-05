@@ -53,6 +53,7 @@ def force_update():
 	list_all_files(True)
 	
 def list_all_files(force_update = False):
+	#print 'list_all_files called'
 	global CACHE_FILES
 	global CACHE_CHUNK_INFO
 	if force_update:
@@ -60,6 +61,7 @@ def list_all_files(force_update = False):
 		CACHE_CHUNK_INFO = {}
 	if CACHE_FILES == {}:
 		CACHE_FILES = simple_client_for_test.cache_list_all_files()		
+	#print CACHE_FILES
 	return CACHE_FILES		
 
 def get_chunks_info(file_name,force_update = False):
@@ -162,6 +164,7 @@ def create_file(file_name,cpp_mode = 0):
 	return 0
 	
 def open_file(file_name,mode,cpp_mode = 0):
+	print 'open_file mode ', str(mode)
 	global CURRENT_OPEN_FILES
 	# force a download_file
 	DIRTIES[file_name] = []

@@ -119,6 +119,30 @@ static int hello_open(const char *path, struct fuse_file_info *fi)
 	}
 	return -ENOENT;
 }
+static int hello_unlink(const char* path)
+{
+	cout << "Remove " << string(path) << endl;
+	string file_name = string(path); if(file_name[0] == '/') file_name = file_name.substr(1);
+	StoreEngine* se = StoreEngine::get_instance();
+	if(se->del_file(file_name) < 0)
+		return -EACCES;
+	se->force_update();
+	return 0;
+}
+
+static int hello_create(const char* path, mode_t mode, struct fuse_file_info* fi)
+{
+	cout << "Create " << string(path) << " mode " << (mode&3) << " " << ((fi->flags) & 3) << endl;
+	string file_name = string(path); if(file_name[0] == '/') file_name = file_name.substr(1);
+	StoreEngine* se = StoreEngine::get_instance();
+	int ret = se->create_file(file_name);
+	if(ret < 0)
+		return -EACCES;
+		
+	se->force_update();
+	/* open it */
+	return hello_open(path,fi);
+}
 
 static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 		      struct fuse_file_info *fi)
@@ -157,7 +181,7 @@ static int hello_write(const char *path, const char *buf, size_t size, off_t off
 	fseek(f,offset,SEEK_SET);
 	int ret_size = fwrite(buf,1,size,f);
 	se->make_dirty(fos->file_name,offset,size);
-	cout << "Write Size : " << ret_size << endl;
+	cout << "Write Size : " << ret_size << " offset: " << offset << endl;
 	return ret_size;
 }
 
@@ -175,6 +199,16 @@ static int hello_release(const char* path, struct fuse_file_info* fi)
 	return 0;
 }
 
+static int hello_truncate(const char* path, off_t target_size)
+{
+	cout << "Truncate " << string(path) << target_size << endl;
+	return 0;
+}
+
+static int hello_utime(const char *, utimbuf* bufs)
+{
+	cout << "Utime .." << endl;	return 0;
+}
 
 static struct fuse_operations hello_oper;
 int main(int argc, char *argv[])
@@ -187,10 +221,14 @@ int main(int argc, char *argv[])
 	/* Init file operations */
 	hello_oper.getattr	= hello_getattr;
 	hello_oper.readdir	= hello_readdir;
+	hello_oper.create   = hello_create;
 	hello_oper.open		= hello_open;
 	hello_oper.read		= hello_read;
 	hello_oper.release  = hello_release;
 	hello_oper.write    = hello_write;  
+	hello_oper.truncate = hello_truncate;
+	hello_oper.utime    = hello_utime;
+	hello_oper.unlink   = hello_unlink;
 	
 	/* Init the libcurl */
 	//HTTPClient::InitHTTPConnection(MASTER_SERVER_URL,false);
