@@ -89,7 +89,7 @@ static vector<FileSize> list_all_files(PyObject* pDict, bool force_update)
 	for(int i = 0; i < ret.size(); i++) {
 		cout << string(ret[i].file_name) << " size: " << ret[i].file_size << endl;
 	}
-	Py_DECREF(pResult);
+	//Py_DECREF(pResult);
 	Py_DECREF(dict);
 	return ret;
 }
@@ -98,14 +98,14 @@ static void sync_download_file(PyObject* pDict,const string& file_name)
 	PyObject* pFunc = PyDict_GetItemString(pDict,"sync_download_file");
 	if(!pFunc) cerr << "Can't find sync_download_file in the module" << endl;
 	PyObject* result = PyObject_CallFunction(pFunc,"s",file_name.c_str());
-	if(result) Py_DECREF(result);
+	//if(result) Py_DECREF(result);
 }
 static void sync_upload_file(PyObject* pDict,const string& file_name)
 {
 	PyObject* pFunc = PyDict_GetItemString(pDict,"sync_upload_file");
 	if(!pFunc) cerr << "Can't find sync_upload_file in the module" << endl;
 	PyObject* result = PyObject_CallFunction(pFunc,"s",file_name.c_str());
-	if(result) Py_DECREF(result);
+	//if(result) Py_DECREF(result);
 }
 
 static int create_file(PyObject* pDict,const string& file_name)
@@ -115,7 +115,7 @@ static int create_file(PyObject* pDict,const string& file_name)
 	PyObject* result = PyObject_CallFunction(pFunc,"si",file_name.c_str(),1);
 	int ret = 0;
 	PyArg_Parse(result,"i",&ret);
-	if(result) Py_DECREF(result);
+	//if(result) Py_DECREF(result);
 	return ret;
 }
 
@@ -126,7 +126,7 @@ static int open_file(PyObject* pDict,const string& file_name,const string& mode)
 	PyObject* result = PyObject_CallFunction(pFunc,"ssi",file_name.c_str(),mode.c_str(),1);
 	int ret = 0;
 	PyArg_Parse(result,"i",&ret);
-	if(result) Py_DECREF(result);
+	//if(result) Py_DECREF(result);
 	return ret;
 }
 
@@ -137,7 +137,7 @@ static int del_file(PyObject* pDict, const string& file_name)
 	PyObject* result = PyObject_CallFunction(pFunc,"s",file_name.c_str());
 	int ret = 0;
 	PyArg_Parse(result,"i",&ret);
-	if(result) Py_DECREF(result);
+	//if(result) Py_DECREF(result);
 	return ret;
 }
 
@@ -148,7 +148,7 @@ static int close_file(PyObject* pDict, const string& file_name)
 	PyObject* result = PyObject_CallFunction(pFunc,"ssi","",file_name.c_str(),1);
 	int ret = 0;
 	PyArg_Parse(result,"i",&ret);
-	if(result) Py_DECREF(result);
+	//if(result) Py_DECREF(result);
 	return ret;
 }
 
@@ -157,7 +157,7 @@ static void make_dirty(PyObject* pDict,const char* file_name,int start,int size)
 	PyObject* pFunc = PyDict_GetItemString(pDict,"make_dirty");
 	if(!pFunc) cerr << "Can't find make_dirty in the module" << endl;
 	PyObject* result = PyObject_CallFunction(pFunc,"sii",file_name,start,size);
-	if(result) Py_DECREF(result);
+	//if(result) Py_DECREF(result);
 }
 
 // THe implementation of the class functions
@@ -251,7 +251,7 @@ void StoreEngine::remove_local(const string& file_name)
 	string new_file_name = _root_dir + file_name;
 	::unlink(new_file_name.c_str());	
 }
-int main(int argc,char** argv)
+int main_test(int argc,char** argv)
 {	
 	StoreEngine* se = StoreEngine::get_instance();
 	se->Init(argc,argv);

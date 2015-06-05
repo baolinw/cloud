@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 #include <stdio.h>
-
+#include "Python.h"
 #define CHUNK_SIZE 1024
 #define SCRIPT_DIR "/home/ubuntu/cloud/server"
 
