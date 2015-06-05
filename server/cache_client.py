@@ -10,7 +10,7 @@ import simple_httpserver
 import log
 import sys
 
-CACHE_FILES = None;
+CACHE_FILES = {};
 lock = Lock()
 CACHE_CHUNK_INFO = {}
 ROOT_DIR = simple_client_for_test.CLIENT_ROOT_DIR
@@ -19,9 +19,13 @@ DIRTIES = {} # dirty flag
 FILE_READ_TRANSACTION = {} # file_name to transaction id
 FILE_WRITE_TRANSACTION = {} # file_name to transaction id
 
+def get_root_dir():
+	return ROOT_DIR
+
 def Mount():
 	list_all_files()
 	synchronize()
+	print 'Hello'
 	
 # decorator of the Lock
 def lock_dec(func):
@@ -45,12 +49,17 @@ def file_exists_local(file_name):
 			return False
 	return current['files'].has_key(file_names[-1])
 
+def force_update():
+	list_all_files(True)
+	
 def list_all_files(force_update = False):
 	global CACHE_FILES
+	global CACHE_CHUNK_INFO
 	if force_update:
-		CACHE_FILES = None
-	if CACHE_FILES == None:
-		CACHE_FILES = simple_client_for_test.cache_list_all_files()
+		CACHE_FILES = {}
+		CACHE_CHUNK_INFO = {}
+	if CACHE_FILES == {}:
+		CACHE_FILES = simple_client_for_test.cache_list_all_files()		
 	return CACHE_FILES		
 
 def get_chunks_info(file_name,force_update = False):
@@ -103,7 +112,6 @@ def sync_upload_file(file_name):
 	server_file_name = config.name_local_to_remote(file_name)
 	chunks_info = get_chunks_info(file_name)
 	file_size = chunks_info['file_size']
-	
 	true_file_name = ROOT_DIR + file_name
 	f = open(true_file_name,'r')
 	f_readed_content = f.read()
@@ -115,6 +123,7 @@ def sync_upload_file(file_name):
 			#print '#??',start_file,DIRTIES
 			chunk_ids.append(start_file // config.FILE_CHUNK_SIZE)
 			contents.extend(f_readed_content[start_file:min(start_file+config.FILE_CHUNK_SIZE, len(f_readed_content))])
+	#print 'sync up load ', chunk_ids, ' ', file_name
 	if len(chunk_ids) > 0:		
 		content = simple_client_for_test.cache_write_file_algined(config.name_local_to_remote(file_name), contents,chunk_ids)
 	print '##',file_name,chunk_ids
@@ -124,11 +133,15 @@ def sync_upload_file(file_name):
 	if CACHE_CHUNK_INFO.has_key(file_name):
 		del CACHE_CHUNK_INFO[file_name]
 	
-@lock_dec
-def create_file(file_name):
+
+def create_file(file_name,cpp_mode = 0):
 	if os.path.exists(ROOT_DIR + file_name):
+		if cpp_mode == 1:
+			return -1
 		raise file_name + ' Already Exist!'
 	if file_exists_local(file_name):
+		if cpp_mode == 1:
+			return -2
 		raise file_name + ' Already Exist in Cache, you may try later'
 	# create the file in local
 	file_names = file_name.split('/');
@@ -146,8 +159,9 @@ def create_file(file_name):
 	f.close()
 	simple_client_for_test.cache_create_file(file_name)
 	sync_upload_file(file_name)
+	return 0
 	
-def open_file(file_name,mode):
+def open_file(file_name,mode,cpp_mode = 0):
 	global CURRENT_OPEN_FILES
 	# force a download_file
 	DIRTIES[file_name] = []
@@ -155,11 +169,15 @@ def open_file(file_name,mode):
 		#simple_cliet_for_test.cache_del_file(config.name_local_to_remote(file_name))
 		#create_file(file_name)
 		CURRENT_OPEN_FILES[file_name] = 'W'		
+		if cpp_mode == 1:
+			return 0
 		return open(ROOT_DIR + file_name, 'w')
 	# read mode, I thought
 	sync_download_file(file_name)
 	true_file_name = ROOT_DIR + file_name
 	CURRENT_OPEN_FILES[file_name] = 'R'
+	if cpp_mode == 1:
+		return 0
 	f = open(true_file_name,mode)
 	return f
 
@@ -171,26 +189,36 @@ def del_file(file_name):
 	except:
 		pass
 	list_all_files(True)
-	os.remove(true_name)	
+	os.remove(true_name)
+	return 0
 	
-@lock_dec
-def close_file(f,file_name):
+
+def close_file(f,file_name,cpp_mode=0):
 	global CACHE_CHUNK_INFO, CURRENT_OPEN_FILES
-	f.close()
+	if cpp_mode == 0:
+		f.close()
 	if CURRENT_OPEN_FILES.has_key(file_name):
 		del CURRENT_OPEN_FILES[file_name]
 	if CACHE_CHUNK_INFO.has_key(file_name):
 		del CACHE_CHUNK_INFO[file_name]
+	#print 'close before upload'
 	sync_upload_file(file_name)
+	#print 'close after upload'
+	return 0
 	
-@lock_dec
+
 def read_file(f, file_name, start, size = 0):
 	f.seek(start)
 	if size == 0:
 		return f.read()
 	return f.read(size)
 
-@lock_dec
+def make_dirty(file_name,start,size):
+	start_block = start // config.FILE_CHUNK_SIZE
+	end_block = (start + size -1) // config.FILE_CHUNK_SIZE	
+	DIRTIES[file_name].extend(range(start_block,end_block+1))
+	
+
 def write_file(f, file_name, start, str_to_write):
 	f.seek(start)
 	
@@ -241,10 +269,13 @@ def synchronize():
 
 import sys
 	
+OUTPUT_FILE = '/tmp/result'
 	
 def test():
 	# Test ################################################################################
 	Mount()
+	Mount()
+	#return
 	try:
 		os.remove(log.WRITE_LOG_FILE);
 		os.remove('local_write_log');
@@ -266,6 +297,7 @@ def test():
 	except Exception as e:
 		print '216',e
 		pass
+
 	create_file('wubaolin')
 	create_file('wubaolin2')
 	f1 = open_file('wubaolin','r+');
@@ -520,12 +552,13 @@ def test():
 	ftmp.close()
 	'''
 
+
 if __name__ == "__main__":
 	# test 0 ----------------, create a file, write to it, sync, read, check, Only 3 servers are allowed!!!!!!!!
 	print sys.argv
 	# I use this file as the core function to be called by the File System, Write as little code in C++ as possible
 	if len(sys.argv) == 1:
 		test()
+		#Mount()
+		#create_file('momoda')
 		sys.exit(0)
-	
-	command = 1
