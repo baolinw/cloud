@@ -162,7 +162,6 @@ static void make_dirty(PyObject* pDict,const char* file_name,int start,int size)
 
 // THe implementation of the class functions
 StoreEngine* StoreEngine::_instance;
-
 void StoreEngine::Init(int argc,char** argv)
 {
 	Py_Initialize();
@@ -181,7 +180,6 @@ void StoreEngine::Init(int argc,char** argv)
 	_pDict = PyModule_GetDict(_pModule);
 	_root_dir = get_root_dir();
 }
-
 void StoreEngine::DeInit()
 {
 	//clean ups
@@ -189,7 +187,6 @@ void StoreEngine::DeInit()
 	Py_DECREF(_pModule);
 	Py_Finalize();
 }
-
 void StoreEngine::Mount()
 {
 	::Mount(_pDict);
@@ -278,6 +275,6 @@ int main_test(int argc,char** argv)
 	se->make_dirty("momoda",0,2048);
 	se->close_file(ff2,"momoda");	
 	se->DeInit();
-	delete se;	
+	delete se;
 	return 0;
 }

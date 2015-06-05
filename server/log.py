@@ -44,6 +44,10 @@ def get_last_update_id(file_name,chunk_id):
 	f1.close()
 	server_ids = []
 	max_trans = -1
+	if w.has_key(file_name) == False:
+		return []
+	if w[file_name].has_key(chunk_id) == False:
+		return []
 	for server_id in w[file_name][chunk_id]:
 		server_ids.append((server_id,w[file_name][chunk_id][server_id]))
 		max_trans = max(max_trans,w[file_name][chunk_id][server_id])

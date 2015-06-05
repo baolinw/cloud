@@ -92,7 +92,7 @@ def pull_meta(DELETE_NON_FINISH_TRANSCATION = False):
 			if file_name.split('.')[-1].startswith('trans'):
 				#ignore
 				continue					
-			
+			file_size = file_size - config.HEADER_LENGTH
 			chunk_id = int(file_name.split('_')[0])
 			file_name = '_'.join(file_name.split('_')[1:])			
 			
@@ -153,9 +153,10 @@ def create_file_by_renaming(trans_id,file_name, servers):
 		# currently we only download and upload, further will update it if the service does allow "copy" 
 		s['download_file'](s['server_object'],tmp_file_name, '/tmp/' + tmp_file_name)
 		s['upload_file'](s['server_object'], '/tmp/' + tmp_file_name, '0_' + file_name);
+		
 		log.log_write(server,file_name,0,trans_id)
 		s['delete_file'](s['server_object'], tmp_file_name);
-		FILES[file_name][0].append([server,config.FILE_CHUNK_SIZE])
+		FILES[file_name][0].append([server,os.stat('/tmp/' + tmp_file_name).st_size - config.HEADER_LENGTH])
 		#print 'The upload', '/tmp/' + tmp_file_name, '0_' + file_name
 		
 def update_file_by_renaming(trans_id,file_name,chunk_ids, chunk_sizes, servers):
@@ -261,6 +262,8 @@ def ok_server(server_id):
 			servers = [i[0] for i in f[chunk_id]]
 			# get the update id from
 			updated_id_servers = log.get_last_update_id(file_name,chunk_id)
+			if len(updated_id_servers) == 0:
+				continue
 			in_date = [i for i in updated_id_servers if SERVERS[i]['live'] == 1]
 			out_of_dated = [i for i in servers if i not in in_date and SERVERS[i]['live'] == 1]
 			if server_id in out_of_dated:

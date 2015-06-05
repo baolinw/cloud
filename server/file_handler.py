@@ -356,6 +356,7 @@ def commit_write_file(trans_id):
 	for c in chunks:
 		del WriteFileLock[file_name][c]
 	trans.DelTrans(trans_id)
+	meta_puller.pull_meta()
 	return '0'
 	
 def commit_read_file(trans_id):

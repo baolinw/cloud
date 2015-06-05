@@ -157,10 +157,12 @@ def create_file(file_name,cpp_mode = 0):
 			pass
 		current = current + folder_name + '/'
 	f = open(current + file_names[-1],'w')
-	f.write('0' * config.FILE_CHUNK_SIZE)
+	f.write('00010000')
 	f.close()
 	simple_client_for_test.cache_create_file(file_name)
-	sync_upload_file(file_name)
+	force_update()
+	#sync_upload_file(file_name)
+	
 	return 0
 	
 def open_file(file_name,mode,cpp_mode = 0):
@@ -270,6 +272,10 @@ def synchronize():
 	# update the CACHE_CHUNK_INFO
 	list_all_files(True)	
 
+def get_local_size(file_name):
+	dir = simple_client_for_test.CLIENT_ROOT_DIR + file_name
+	return os.stat(dir).st_size
+	
 import sys
 	
 OUTPUT_FILE = '/tmp/result'
@@ -299,6 +305,14 @@ def test():
 		del_file('pp.txt')
 	except Exception as e:
 		print '216',e
+		pass
+	try:
+		del_file('file_size1');
+	except Exception as e:
+		pass
+	try:
+		del_file('file_size2');
+	except Exception as e:
 		pass
 
 	create_file('wubaolin')
@@ -338,7 +352,7 @@ def test():
 	f2 = open_file('wubaolin2','r')
 	assert read_file(f2,'wubaolin2',1020,len('HAHAHAHA2nd')) == 'HAHAHAHA2nd'
 	
-	assert read_file(f2,'wubaolin2',0,10) == '0' * 10
+	#assert read_file(f2,'wubaolin2',0,10) == '0' * 10
 	
 	print 'testing the pride-and-prejudice.......'
 	create_file('pp.txt')
@@ -531,9 +545,39 @@ def test():
 	
 	print '\033[1;32;40m FT single test 5 Passed!\033[0m '	
 	
+	
+	print 'Test for file size'	
+	create_file('file_size1'); 
+	f = open_file('file_size1','r')
+	close_file(f,'file_size1')
+	
+	create_file('file_size2'); 
+	f = open_file('file_size2','r')
+	close_file(f,'file_size2')
+	
+	assert get_local_size('file_size1') == 0
+	
+	for size in range(102,12345,1024):
+		f = open_file('file_size1','w')
+		write_file(f,'file_size1',0,'W' * size)
+		close_file(f,'file_size1')
+		force_update()
+		assert get_local_size('file_size1') == size
+	
+	former = 0
+	for size in range(102,12345,1024):
+		f = open_file('file_size2','r+')
+		write_file(f,'file_size2',former,'W' * size)
+		close_file(f,'file_size2')
+		print size
+		assert get_local_size('file_size2') == size + former
+		former = size + former
+		
+	print '\033[1;32;40m File Size Test 1 Passed!\033[0m '	
+	
+	
 	print 'Some corner case for read/write-----------'
 	# create empty 
-	
 	
 	
 	# test1 -----------------, download/modify/upload/download/check
@@ -554,7 +598,6 @@ def test():
 	assert(read_file(ftmp,'tutu2.txt',1020,7) == '2'*7)
 	ftmp.close()
 	'''
-
 
 if __name__ == "__main__":
 	# test 0 ----------------, create a file, write to it, sync, read, check, Only 3 servers are allowed!!!!!!!!

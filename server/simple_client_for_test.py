@@ -164,6 +164,10 @@ def cache_create_file(file_name):
 		s['upload_file'](s['server_object'], 'fake_new_file_1k', target_file_name)	
 	# confirm the transaction
 	simple_httpserver.handle_commit_trans({'id':[trans_id]})
+	try:
+		os.remove(CLIENT_ROOT_DIR + file_name)
+	except Exception as e:
+		pass
 	
 def cache_del_file(file_name):
 	file_name = name_local_to_remote(file_name)
@@ -216,10 +220,13 @@ def cache_read_file(file_name, start, size):
 		# Skip the first 8 bytes
 		version = f.read(4)
 		size = int(f.read(4))
+		# stop reading when less than config.FILE_CHUNK_SIZE
 		
 		mm = f.read(size)
 		byte_file += mm
-		f.close()	
+		f.close()
+		if size < config.FILE_CHUNK_SIZE or version[0] == '1':
+			break
 	
 	simple_httpserver.handle_commit_trans({'id':[trans_id]})
 	s = start % config.FILE_CHUNK_SIZE
