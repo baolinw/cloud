@@ -141,6 +141,16 @@ static int del_file(PyObject* pDict, const string& file_name)
 	return ret;
 }
 
+static int get_local_size(PyObject* pDict, const string& file_name)
+{
+	PyObject* pFunc = PyDict_GetItemString(pDict,"get_local_size");
+	if(!pFunc) cerr << "Can't find get_local_size in the module" << endl;
+	PyObject* result = PyObject_CallFunction(pFunc,"s",file_name.c_str());
+	int ret = 0;
+	PyArg_Parse(result,"i",&ret);
+	return ret;
+}
+
 static int close_file(PyObject* pDict, const string& file_name)
 {
 	PyObject* pFunc = PyDict_GetItemString(pDict,"close_file");
@@ -247,6 +257,10 @@ void StoreEngine::remove_local(const string& file_name)
 {
 	string new_file_name = _root_dir + file_name;
 	::unlink(new_file_name.c_str());	
+}
+int StoreEngine::get_true_length(const string& file_name)
+{
+	::get_local_size(_pDict,file_name);
 }
 int main_test(int argc,char** argv)
 {	

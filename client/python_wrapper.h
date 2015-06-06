@@ -28,6 +28,7 @@ public:
 	int close_file(FILE* file, const std::string& file_name);
 	void remove_local(const std::string& file_name);
 	void make_dirty(const std::string& file_name, int start, int size);
+	int get_true_length(const std::string& file_name);
 public: // Singleton
 	static StoreEngine* get_instance();
 private:

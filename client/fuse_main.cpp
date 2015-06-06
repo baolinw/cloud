@@ -82,15 +82,20 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	return 0;
 }
 struct FILE_OPEN_STRUCT {
-	FILE_OPEN_STRUCT(){ fh = NULL; };
-	
+	FILE_OPEN_STRUCT(){ fh = NULL; is_append = false; is_truncted = false; };	
 	string file_name;
 	string mode;
 	FILE* fh;
+	/* For append */
+	bool is_append;
+	int true_file_length;
+	int fake_file_length;
+	/* for Truncate */
+	bool is_truncted;
 };
 static int hello_open(const char *path, struct fuse_file_info *fi)
 {
-	cout << "File Open " << string(path) << endl;
+	cout << "File Open " << string(path) << "with mode" << endl;
 	
 	StoreEngine* se = StoreEngine::get_instance();
 	vector<FileSize> file_names = se->list_all_files();
@@ -103,8 +108,10 @@ static int hello_open(const char *path, struct fuse_file_info *fi)
 		if(pp == file_name) {			
 			string mode = "";
 			if ((fi->flags & 3) == O_RDONLY) mode = "r";
-			if ((fi->flags & 3) == O_WRONLY) mode = "w";
+			if ((fi->flags & 3) == O_WRONLY) mode = "r+";
 			if ((fi->flags & 3) == O_RDWR) mode = "r+";
+			if (fi->flags & O_APPEND) cout << "APEND mode " << endl;
+			
 			FILE* fh = se->open_file(file_name,mode);
 			//cout << "1st fh " << fh << endl;
 			if(fh == NULL) return -ENOENT;
@@ -112,7 +119,20 @@ static int hello_open(const char *path, struct fuse_file_info *fi)
 			fos->file_name = file_name;
 			fos->mode = mode;
 			fos->fh = fh;
+			if (fi->flags & O_APPEND) {
+				fos->is_append = true;
+				fos->fake_file_length = -1;
+				fos->true_file_length = se->get_true_length(file_name);
+				for(int i = 0; i < file_names.size();i++) {
+					if(file_name == file_names[i].file_name) {
+						fos->fake_file_length = file_names[i].file_size;
+						break;
+					}
+				}
+				assert(fos->fake_file_length != -1);
+			}
 			fi->fh = (uint64_t)fos;
+			
 			cout << "File Open Success" << endl;
 			return 0;
 		}
@@ -168,7 +188,7 @@ static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 static int hello_write(const char *path, const char *buf, size_t size, off_t offset,
 		      struct fuse_file_info *fi)
 {
-	cout << "Write path " << string(path) << endl;
+	cout << "Write path " << string(path) << "off " << offset << endl;
 	
 	StoreEngine* se = StoreEngine::get_instance();	
 	FILE_OPEN_STRUCT* fos = (FILE_OPEN_STRUCT*)fi->fh;
@@ -178,6 +198,10 @@ static int hello_write(const char *path, const char *buf, size_t size, off_t off
 	
 	FILE* f = fos->fh;
 	//cout << "f " << f << endl;
+	if(fos->is_append) {
+		offset -= (fos->fake_file_length - fos->true_file_length);
+		cout << "New offset " << fos->fake_file_length << " true:" << fos->true_file_length;
+	}
 	fseek(f,offset,SEEK_SET);
 	int ret_size = fwrite(buf,1,size,f);
 	se->make_dirty(fos->file_name,offset,size);

@@ -274,7 +274,9 @@ def synchronize():
 
 def get_local_size(file_name):
 	dir = simple_client_for_test.CLIENT_ROOT_DIR + file_name
-	return os.stat(dir).st_size
+	size = os.stat(dir).st_size
+	print 'get_local_size ', file_name, size,dir
+	return size
 	
 import sys
 	
