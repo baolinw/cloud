@@ -25,6 +25,7 @@
 
 static const char *hello_str = "Hello World!\n";
 static const char *hello_path = "/hello";
+const std::string LOG_H = "FUSE:: ";
 
 using namespace std;
 
@@ -32,7 +33,7 @@ static int hello_getattr(const char *path, struct stat *stbuf)
 {
 	int res = 0;
 	
-	cout <<"getattr" << string(path) << " " << endl;
+	//cout << LOG_H << "getattr" << string(path) << " " << endl;
 	StoreEngine* se = StoreEngine::get_instance();
 	vector<FileSize> file_names = se->list_all_files();
 	
@@ -63,7 +64,7 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 {
 	(void) offset;
 	(void) fi;
-	cout << "readdir " << string(path) << endl;
+	//cout << "readdir " << string(path) << endl;
 	if (strcmp(path, "/") != 0)
 		return -ENOENT;
 
@@ -74,11 +75,7 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	for(FileSize fs : file_names) {
 		filler(buf, fs.file_name, NULL, 0);
 	}		
-	//filler(buf, hello_path + 1, NULL, 0);
-	/*for(SimpeFile sf : g_all_files) {
-		filler(buf, sf.file_name.c_str(), NULL,0);
-	}*/
-
+	
 	return 0;
 }
 struct FILE_OPEN_STRUCT {
@@ -95,7 +92,7 @@ struct FILE_OPEN_STRUCT {
 };
 static int hello_open(const char *path, struct fuse_file_info *fi)
 {
-	cout << "File Open " << string(path) << "with mode" << endl;
+	cout << LOG_H << "File Open " << string(path) ;
 	
 	StoreEngine* se = StoreEngine::get_instance();
 	vector<FileSize> file_names = se->list_all_files();
@@ -110,7 +107,8 @@ static int hello_open(const char *path, struct fuse_file_info *fi)
 			if ((fi->flags & 3) == O_RDONLY) mode = "r";
 			if ((fi->flags & 3) == O_WRONLY) mode = "r+";
 			if ((fi->flags & 3) == O_RDWR) mode = "r+";
-			if (fi->flags & O_APPEND) cout << "APEND mode " << endl;
+			cout << "with mode" << mode << endl;
+			if (fi->flags & O_APPEND) cout << LOG_H << "APEND mode " << endl;
 			
 			FILE* fh = se->open_file(file_name,mode);
 			//cout << "1st fh " << fh << endl;
@@ -133,7 +131,7 @@ static int hello_open(const char *path, struct fuse_file_info *fi)
 			}
 			fi->fh = (uint64_t)fos;
 			
-			cout << "File Open Success" << endl;
+			cout << LOG_H << "File Open Success" << endl;
 			return 0;
 		}
 	}
@@ -141,7 +139,7 @@ static int hello_open(const char *path, struct fuse_file_info *fi)
 }
 static int hello_unlink(const char* path)
 {
-	cout << "Remove " << string(path) << endl;
+	cout << LOG_H << "Remove " << string(path) << endl;
 	string file_name = string(path); if(file_name[0] == '/') file_name = file_name.substr(1);
 	StoreEngine* se = StoreEngine::get_instance();
 	if(se->del_file(file_name) < 0)
@@ -152,7 +150,7 @@ static int hello_unlink(const char* path)
 
 static int hello_create(const char* path, mode_t mode, struct fuse_file_info* fi)
 {
-	cout << "Create " << string(path) << " mode " << (mode&3) << " " << ((fi->flags) & 3) << endl;
+	cout << LOG_H << "Create " << string(path) << " mode " << (mode&3) << " " << ((fi->flags) & 3) << endl;
 	string file_name = string(path); if(file_name[0] == '/') file_name = file_name.substr(1);
 	StoreEngine* se = StoreEngine::get_instance();
 	int ret = se->create_file(file_name);
@@ -188,7 +186,7 @@ static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 static int hello_write(const char *path, const char *buf, size_t size, off_t offset,
 		      struct fuse_file_info *fi)
 {
-	cout << "Write path " << string(path) << "off " << offset << endl;
+	cout << LOG_H << "Write path " << string(path) << " off " << offset << endl;
 	
 	StoreEngine* se = StoreEngine::get_instance();	
 	FILE_OPEN_STRUCT* fos = (FILE_OPEN_STRUCT*)fi->fh;
@@ -200,19 +198,19 @@ static int hello_write(const char *path, const char *buf, size_t size, off_t off
 	//cout << "f " << f << endl;
 	if(fos->is_append) {
 		offset -= (fos->fake_file_length - fos->true_file_length);
-		cout << "New offset " << fos->fake_file_length << " true:" << fos->true_file_length;
+		//cout << "New offset " << fos->fake_file_length << " true:" << fos->true_file_length;
 	}
 	fseek(f,offset,SEEK_SET);
 	int ret_size = fwrite(buf,1,size,f);
 	se->make_dirty(fos->file_name,offset,size);
-	cout << "Write Size : " << ret_size << " offset: " << offset << endl;
+	cout << LOG_H << "Write Size : " << ret_size << " offset: " << offset << endl;
 	return ret_size;
 }
 
 // Our implementation cares about the release instead of release...., 
 static int hello_release(const char* path, struct fuse_file_info* fi)
 {
-	cout << "In release ..." << endl;
+	cout << LOG_H << "In release ..." << endl;
 	FILE_OPEN_STRUCT* fos = (FILE_OPEN_STRUCT*)fi->fh;
 	if(fos == NULL) return -ENOENT;	
 	FILE* f = fos->fh;
@@ -225,13 +223,13 @@ static int hello_release(const char* path, struct fuse_file_info* fi)
 
 static int hello_truncate(const char* path, off_t target_size)
 {
-	cout << "Truncate " << string(path) << target_size << endl;
+	cout << LOG_H << "Truncate " << string(path) << target_size << endl;
 	return 0;
 }
 
 static int hello_utime(const char *, utimbuf* bufs)
 {
-	cout << "Utime .." << endl;	return 0;
+	cout << LOG_H << "Utime .." << endl;	return 0;
 }
 
 static struct fuse_operations hello_oper;
