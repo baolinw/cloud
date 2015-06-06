@@ -146,6 +146,7 @@ static int get_local_size(PyObject* pDict, const string& file_name)
 	PyObject* pFunc = PyDict_GetItemString(pDict,"get_local_size");
 	if(!pFunc) cerr << "Can't find get_local_size in the module" << endl;
 	PyObject* result = PyObject_CallFunction(pFunc,"s",file_name.c_str());
+	cout << " the ret of get_local_size is " << result << " filename " << file_name << endl;
 	int ret = 0;
 	PyArg_Parse(result,"i",&ret);
 	return ret;

@@ -53,14 +53,16 @@ def force_update():
 	list_all_files(True)
 	
 def list_all_files(force_update = False):
-	#print 'list_all_files called'
+	print '\033[1;32;40m list_all_files called \033[0m '	
 	global CACHE_FILES
 	global CACHE_CHUNK_INFO
 	if force_update:
 		CACHE_FILES = {}
 		CACHE_CHUNK_INFO = {}
 	if CACHE_FILES == {}:
+		print '\033[1;32;40m list_all_files before \033[0m '	
 		CACHE_FILES = simple_client_for_test.cache_list_all_files()		
+	print '\033[1;32;40m list_all_files after \033[0m '	
 	#print CACHE_FILES
 	return CACHE_FILES		
 
@@ -115,8 +117,11 @@ def sync_upload_file(file_name):
 	chunks_info = get_chunks_info(file_name)
 	file_size = chunks_info['file_size']
 	true_file_name = ROOT_DIR + file_name
+	print 'in sync_upload_file ', true_file_name
 	f = open(true_file_name,'r')
 	f_readed_content = f.read()
+	print 'in sync_upload_file ', len(f_readed_content)
+	print DIRTIES
 	# loop over the file 
 	chunk_ids = []
 	contents = []
@@ -125,9 +130,10 @@ def sync_upload_file(file_name):
 			#print '#??',start_file,DIRTIES
 			chunk_ids.append(start_file // config.FILE_CHUNK_SIZE)
 			contents.extend(f_readed_content[start_file:min(start_file+config.FILE_CHUNK_SIZE, len(f_readed_content))])
-	#print 'sync up load ', chunk_ids, ' ', file_name
+	print 'sync up load ', chunk_ids, ' ', file_name
 	if len(chunk_ids) > 0:		
 		content = simple_client_for_test.cache_write_file_algined(config.name_local_to_remote(file_name), contents,chunk_ids)
+		force_update()
 	print '##',file_name,chunk_ids
 	if DIRTIES.has_key(file_name):
 		DIRTIES[file_name] = []
@@ -275,7 +281,7 @@ def synchronize():
 def get_local_size(file_name):
 	dir = simple_client_for_test.CLIENT_ROOT_DIR + file_name
 	size = os.stat(dir).st_size
-	print 'get_local_size ', file_name, size,dir
+	print '@@@@@@@@@@@@get_local_size ', file_name, size,dir	
 	return size
 	
 import sys
@@ -359,14 +365,14 @@ def test():
 	print 'testing the pride-and-prejudice.......'
 	create_file('pp.txt')
 	fpp = open_file('pp.txt','r+')
-	write_file(fpp,'pp.txt',0,open('/tmp/pp.txt').read())
+	write_file(fpp,'pp.txt',0,open('/tmp/hehehe/pp.txt').read())
 	close_file(fpp,'pp.txt')
 	os.remove(ROOT_DIR + 'pp.txt')
 	
 	synchronize()
 	fpp = open_file('pp.txt','r+')
 	tmp = read_file(fpp,'pp.txt',0)
-	tmp2 = open('/tmp/pp.txt').read()
+	tmp2 = open('/tmp/hehehe/pp.txt').read()
 	assert(all([tmp[i] == tmp2[i] for i in range(len(tmp2))]))	
 	close_file(fpp,'pp.txt')
 	

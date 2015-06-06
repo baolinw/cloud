@@ -343,7 +343,7 @@ def migration(file_name,chunk_id,servers):
 def migration_to(file_name,chunk_id,the_from,the_to):
 	#print 'In migration222()', file_name, str(chunk_id), 'from ',the_from,' to ',the_to
 	global SERVERS
-	
+	#print 'migration_to ', the_from, 
 	# download the original file
 	s = SERVERS[the_from[0]]
 	target_file = str(chunk_id) + '_' + file_name

@@ -12,6 +12,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdio.h>
@@ -23,8 +24,6 @@
 //#include "meta_info.h"
 #include "python_wrapper.h"
 
-static const char *hello_str = "Hello World!\n";
-static const char *hello_path = "/hello";
 const std::string LOG_H = "FUSE:: ";
 
 using namespace std;
@@ -64,7 +63,7 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 {
 	(void) offset;
 	(void) fi;
-	//cout << "readdir " << string(path) << endl;
+	//cout << LOG_H << "readdir " << string(path) << endl;
 	if (strcmp(path, "/") != 0)
 		return -ENOENT;
 
@@ -90,6 +89,9 @@ struct FILE_OPEN_STRUCT {
 	/* for Truncate */
 	bool is_truncted;
 };
+// Manipulate opened files
+map<string,vector<FILE_OPEN_STRUCT*> > g_opened_files;
+
 static int hello_open(const char *path, struct fuse_file_info *fi)
 {
 	cout << LOG_H << "File Open " << string(path) ;
@@ -121,14 +123,17 @@ static int hello_open(const char *path, struct fuse_file_info *fi)
 				fos->is_append = true;
 				fos->fake_file_length = -1;
 				fos->true_file_length = se->get_true_length(file_name);
+				cout << LOG_H << " The true file len of " << file_name << " is " << fos->true_file_length << endl;
 				for(int i = 0; i < file_names.size();i++) {
 					if(file_name == file_names[i].file_name) {
 						fos->fake_file_length = file_names[i].file_size;
 						break;
 					}
 				}
+				//if(g_opened_files.find(file_name) == g_opened_files.end()) {
 				assert(fos->fake_file_length != -1);
 			}
+			g_opened_files[file_name].push_back(fos);
 			fi->fh = (uint64_t)fos;
 			
 			cout << LOG_H << "File Open Success" << endl;
@@ -167,7 +172,7 @@ static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 {
 	size_t len;
 	(void) fi;
-	
+	cout << LOG_H << "read offset " << offset << " size " << size << endl;
 	StoreEngine* se = StoreEngine::get_instance();
 	
 	FILE_OPEN_STRUCT* fos = (FILE_OPEN_STRUCT*)fi->fh;
@@ -179,7 +184,10 @@ static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 	//cout << "f " << f << endl;
 	fseek(f,offset,SEEK_SET);
 	int ret_size = fread(buf,1,size,f);
-	cout << "Size : " << ret_size << endl;
+	cout << LOG_H << " Readed Size : " << ret_size << endl;
+	//cout << "----------------------------" << endl;
+	//for(int i = 0; i < ret_size; i++) cout << buf[i];
+	//cout << endl << "-----------------------------" << endl;
 	return ret_size;
 }
 
@@ -198,7 +206,7 @@ static int hello_write(const char *path, const char *buf, size_t size, off_t off
 	//cout << "f " << f << endl;
 	if(fos->is_append) {
 		offset -= (fos->fake_file_length - fos->true_file_length);
-		//cout << "New offset " << fos->fake_file_length << " true:" << fos->true_file_length;
+		cout << "New offset " << fos->fake_file_length << " true:" << fos->true_file_length;
 	}
 	fseek(f,offset,SEEK_SET);
 	int ret_size = fwrite(buf,1,size,f);
@@ -218,12 +226,36 @@ static int hello_release(const char* path, struct fuse_file_info* fi)
 	StoreEngine* se = StoreEngine::get_instance();
 	
 	se->close_file(f,file_name);
+	
+	int index = -1;
+	for(int i = 0;i < g_opened_files[file_name].size();i++) {
+		if(g_opened_files[file_name][i] == fos) {
+			index = i; 
+			g_opened_files[file_name].erase(g_opened_files[file_name].begin() + index);
+			return 0;
+		}
+	}
+	
 	return 0;
 }
 
 static int hello_truncate(const char* path, off_t target_size)
 {
+	StoreEngine* se = StoreEngine::get_instance();
 	cout << LOG_H << "Truncate " << string(path) << target_size << endl;
+	string file_name(path); if(file_name[0] == '/') file_name = file_name.substr(1);
+	if(g_opened_files[file_name].size() > 1) {
+		cerr << LOG_H << " truncate when multiple opens " << endl;
+		return -EACCES;
+	}
+	for(FILE_OPEN_STRUCT* fos : g_opened_files[file_name]) {
+		fos->is_truncted = true; 
+		fclose(fos->fh);
+		se->del_file(file_name);
+		se->create_file(file_name);
+		fos->fh = se->open_file(file_name,"w"); // fake truncated
+	}
+	cout << LOG_H << "Truncate " << "Finishes " << endl;
 	return 0;
 }
 
