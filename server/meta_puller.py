@@ -27,14 +27,14 @@ def init_config():
 	# init the google server
 	SERVERS.append( { \
 		'id':0, \
-		'live':1, \
-		'name' : 'Local', \
-		'server_object' : local_api.lib_local.create_service_object('wbl'), \
-		'get_all_file_names' : local_api.lib_local.get_all_file_names, \
-		'download_file' : local_api.lib_local.download_file, \
-		'delete_file' :  local_api.lib_local.delete_file, \
-		'upload_file' : local_api.lib_local.upload_file
-	})	
+		'live': 1, \
+		'name' : 'Google', \
+		'server_object' : google_api.lib_google.create_service_object('test'), \
+		'get_all_file_names' : google_api.lib_google.get_all_file_names, \
+		'download_file' : google_api.lib_google.download_file, \
+		'delete_file' :  google_api.lib_google.delete_file, \
+		'upload_file' : google_api.lib_google.upload_file
+	})
 	SERVERS.append( { \
 		'id':1, \
 		'live':1, \

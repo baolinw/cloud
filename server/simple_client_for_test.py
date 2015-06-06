@@ -18,13 +18,13 @@ WRITE_FAIL_MODE = 0 # 0 normal, 1: no update no commit and no error recovery, on
 # we don't do anything relating to CREATE fail, we don't have time to do it, just use the write to illustrate it
 SERVERS.append( { \
 		'id':0, \
-		'live':1, \
-		'name' : 'Local', \
-		'server_object' : local_api.lib_local.create_service_object('wbl'), \
-		'get_all_file_names' : local_api.lib_local.get_all_file_names, \
-		'download_file' : local_api.lib_local.download_file, \
-		'delete_file' :  local_api.lib_local.delete_file, \
-		'upload_file' : local_api.lib_local.upload_file
+		'live': 1, \
+		'name' : 'Google', \
+		'server_object' : google_api.lib_google.create_service_object('test'), \
+		'get_all_file_names' : google_api.lib_google.get_all_file_names, \
+		'download_file' : google_api.lib_google.download_file, \
+		'delete_file' :  google_api.lib_google.delete_file, \
+		'upload_file' : google_api.lib_google.upload_file
 	})
 SERVERS.append( { \
 		'id':1, \
@@ -219,7 +219,7 @@ def cache_read_file(file_name, start, size):
 		
 		# Skip the first 8 bytes
 		version = f.read(4)
-		size = int(f.read(4))
+		size = int(f.read(config.HEADER_LENGTH-4))
 		# stop reading when less than config.FILE_CHUNK_SIZE
 		
 		mm = f.read(size)
@@ -361,7 +361,7 @@ def cache_write_file_algined(file_name,to_write,chunk_ids,log_it = True):
 		target_server = servers[NUM_PER_SERVER*index:(index+1)*NUM_PER_SERVER]
 		chunk_content = str(index) * config.FILE_CHUNK_SIZE
 		version = '0001'
-		size = '%04d'%(sizes[index])
+		size = '%012d'%(sizes[index])
 		count = 0
 		for server in target_server:
 			if WRITE_FAIL_MODE == 1:

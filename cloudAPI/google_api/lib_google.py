@@ -101,7 +101,7 @@ def get_all_file_names(service):
 			if  'items' not in resp:
 				break;
 			for name in resp['items']:
-				file_names.append((name['name'],name['size']))
+				file_names.append((name['name'],int(name['size'])))
 			req = service.objects().list_next(req, resp)
 		return file_names
 

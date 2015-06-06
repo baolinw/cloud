@@ -1,7 +1,7 @@
 #All Configurations
 FILE_DUPLICATE_NUM = 2 # how many replications stored
-FILE_CHUNK_SIZE = 1024 # 1KB, the chunk size, will be larger when finishing debugging
-HEADER_LENGTH = 8 # header size
+FILE_CHUNK_SIZE = 1024*512 # 1KB, the chunk size, will be larger when finishing debugging
+HEADER_LENGTH = 16 # header size
 
 IGNORE_LOCK = True # for test purpose
 
