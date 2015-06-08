@@ -151,6 +151,7 @@ def sync_upload_file(file_name):
 		true_file_name = ROOT_DIR + file_name
 		print 'in sync_upload_file ', true_file_name
 		f = open(true_file_name,'r')
+		real_file_length = size = os.stat(true_file_name).st_size
 		f_readed_content = f.read()
 		print 'in sync_upload_file ', len(f_readed_content)
 		print DIRTIES
@@ -164,7 +165,7 @@ def sync_upload_file(file_name):
 				contents.extend(f_readed_content[start_file:min(start_file+config.FILE_CHUNK_SIZE, len(f_readed_content))])
 		print 'sync up load ', chunk_ids, ' ', file_name
 		if len(chunk_ids) > 0:		
-			content = simple_client_for_test.cache_write_file_algined(config.name_local_to_remote(file_name), contents,chunk_ids)
+			content = simple_client_for_test.cache_write_file_algined(config.name_local_to_remote(file_name), contents,chunk_ids,real_file_length)
 			force_update()
 		print '##',file_name,chunk_ids
 		if DIRTIES.has_key(file_name):

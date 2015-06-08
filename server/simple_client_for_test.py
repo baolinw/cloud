@@ -321,7 +321,7 @@ def redo_logs():
 # the write log is something like:
 # [ [file_name,to_write,chunk_ids,chunk_ids_wroted,status], ... ]
 # simplified version of cache_write_file, with specified chunk_id
-def cache_write_file_algined(file_name,to_write,chunk_ids,log_it = True):
+def cache_write_file_algined(file_name,to_write,chunk_ids,real_file_length, log_it = True):
 	global WRITE_FAIL_MODE
 	assert len(to_write) > 0
 	# save the transactions now
@@ -335,6 +335,13 @@ def cache_write_file_algined(file_name,to_write,chunk_ids,log_it = True):
 		f = open(WRITE_LOG_FILE,'w')
 		pickle.dump(logs,f)
 		f.close()
+		
+	# whether to write only parts
+	opt_chunk_id = -1
+	opt_chunk_length = -1
+	if(real_file_length % config.FILE_CHUNK_SIZE != 0):
+		opt_chunk_id = real_file_length // config.FILE_CHUNK_SIZE
+		opt_chunk_length = real_file_length % config.FILE_CHUNK_SIZE
 	
 	size = len(to_write)
 	file_name = name_local_to_remote(file_name)
@@ -387,8 +394,14 @@ def cache_write_file_algined(file_name,to_write,chunk_ids,log_it = True):
 			s = SERVERS[server]
 			f = open('/tmp/hehe','w')
 			f.write(version)
-			f.write(size)
-			f.write(''.join(buf_to_write[index*config.FILE_CHUNK_SIZE:(index+1)*config.FILE_CHUNK_SIZE]))
+			
+			if chunk_id == opt_chunk_id:
+				size = '%012d'%(opt_chunk_length)
+				f.write(size)
+				f.write(''.join(buf_to_write[index*config.FILE_CHUNK_SIZE:(index*config.FILE_CHUNK_SIZE + opt_chunk_length)]))
+			else:
+				f.write(size)
+				f.write(''.join(buf_to_write[index*config.FILE_CHUNK_SIZE:(index+1)*config.FILE_CHUNK_SIZE]))
 			f.close()
 			target_file_name = str(chunk_ids[index]) + '_' + file_name + '.trans' + str(trans_id)
 			#print target_file_name,"HEHEHE"
