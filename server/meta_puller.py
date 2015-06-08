@@ -27,13 +27,13 @@ def init_config():
 	# init the google server
 	SERVERS.append( { \
 		'id':0, \
-		'live': 1, \
-		'name' : 'Google', \
-		'server_object' : google_api.lib_google.create_service_object('test'), \
-		'get_all_file_names' : google_api.lib_google.get_all_file_names, \
-		'download_file' : google_api.lib_google.download_file, \
-		'delete_file' :  google_api.lib_google.delete_file, \
-		'upload_file' : google_api.lib_google.upload_file
+		'live':1, \
+		'name' : 'Local', \
+		'server_object' : local_api.lib_local.create_service_object('wbl'), \
+		'get_all_file_names' : local_api.lib_local.get_all_file_names, \
+		'download_file' : local_api.lib_local.download_file, \
+		'delete_file' :  local_api.lib_local.delete_file, \
+		'upload_file' : local_api.lib_local.upload_file
 	})
 	SERVERS.append( { \
 		'id':1, \
@@ -121,11 +121,15 @@ def pull_meta(DELETE_NON_FINISH_TRANSCATION = False):
 # get all_file_name
 def get_all_file_names():
 	global FILES
+	#print 'get_all_file_names', FILES
 	return FILES.keys()
 
 # return [file_name, file_size, is_folder]
 def get_file_meta_info(file_name):
+	#print 'In get_file_meta_info', file_name
 	assert file_name in FILES.keys()
+	#print 'In get_file_meta_info 222', file_name
+	#print '23: ' , [file_name, FILES[file_name]['file_size'], 0]
 	return [file_name, FILES[file_name]['file_size'], 0]
 
 def get_chunks_id(file_name):
@@ -325,6 +329,7 @@ def migration(file_name,chunk_id,servers):
 			source = servers[i]
 			break
 	if source == -1:
+		print servers
 		assert False, 'File Lost !'
 	candidates = [i for i in range(len(SERVERS)) if i not in servers and SERVERS[i]['live'] == 1]
 	random.shuffle(candidates)

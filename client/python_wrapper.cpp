@@ -137,7 +137,7 @@ static int del_file(PyObject* pDict, const string& file_name)
 	PyObject* result = PyObject_CallFunction(pFunc,"s",file_name.c_str());
 	int ret = 0;
 	PyArg_Parse(result,"i",&ret);
-	//if(result) Py_DECREF(result);
+	if(result) Py_DECREF(result);
 	return ret;
 }
 

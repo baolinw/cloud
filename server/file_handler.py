@@ -38,12 +38,21 @@ def request_ok_server(server_id):
  
 def get_all_files(folder_name):
 	ret = []
-	for file_name in meta_puller.get_all_file_names():
+		
+	all_files =  meta_puller.get_all_file_names()
+	print 'all files ', all_files	
+
+	for file_name_index in range(len(all_files)):
+		file_name = all_files[file_name_index]
+		file_name_index += 1
+		print 'file_name ',file_name
+		tmp = meta_puller.get_file_meta_info(file_name)
 		file_map = {}
 		file_map['file_name'] = file_name
-		file_map['size'] = meta_puller.get_file_meta_info(file_name)[1]
-		file_map['is_folder'] = meta_puller.get_file_meta_info(file_name)[2]
+		file_map['size'] = tmp[1]
+		file_map['is_folder'] = tmp[2]
 		ret.append(file_map)
+		print 'file_name ', file_name, ' Loop Ends', all_files
 	return ret	
 
 def get_all_chunks_of_file(file_name):

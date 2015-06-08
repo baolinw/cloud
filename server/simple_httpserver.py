@@ -27,7 +27,9 @@ def handle_get_all_files(param):
 	folder_name = param['folder_name'][0]
 
 	buf = [str(0)]
+
 	all_files = file_handler.get_all_files(folder_name)
+
 	buf.append(str(len(all_files)))
 	for i in range(len(all_files)):
 		buf.append(convert_file_to_str(all_files[i]))

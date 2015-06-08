@@ -9,6 +9,7 @@ import os.path
 import simple_httpserver
 import log
 import sys
+import traceback
 
 CACHE_FILES = {};
 lock = Lock()
@@ -23,8 +24,14 @@ def get_root_dir():
 	return ROOT_DIR
 
 def Mount():
-	list_all_files()
-	synchronize()
+	try:
+		list_all_files()
+		synchronize()
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 	print 'Hello'
 	
 # decorator of the Lock
@@ -50,96 +57,126 @@ def file_exists_local(file_name):
 	return current['files'].has_key(file_names[-1])
 
 def force_update():
-	list_all_files(True)
+	try:
+		list_all_files(True)
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 	
 def list_all_files(force_update = False):
-	#Sprint '\033[1;32;40m list_all_files called \033[0m '	
-	global CACHE_FILES
-	global CACHE_CHUNK_INFO
-	if force_update:
-		CACHE_FILES = {}
-		CACHE_CHUNK_INFO = {}
-	if CACHE_FILES == {}:
-		#print '\033[1;32;40m list_all_files before \033[0m '	
-		CACHE_FILES = simple_client_for_test.cache_list_all_files()		
-	#print '\033[1;32;40m list_all_files after \033[0m '	
-	#print CACHE_FILES
-	return CACHE_FILES		
+	try:
+		global CACHE_FILES
+		global CACHE_CHUNK_INFO
+		#print '\033[1;32;40m list_all_files called ',CACHE_FILES,'\033[0m '	
+		if force_update:
+			CACHE_FILES = {}
+			CACHE_CHUNK_INFO = {}
+		if CACHE_FILES == {}:
+			#print '\033[1;32;40m list_all_files before \033[0m '	
+			CACHE_FILES = simple_client_for_test.cache_list_all_files()		
+		#print '\033[1;32;40m list_all_files after \033[0m '	
+		#print '\033[1;32;40m Get All files', CACHE_FILES,'\033[0m '
+		return CACHE_FILES		
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 
 def get_chunks_info(file_name,force_update = False):
 	global CACHE_CHUNK_INFO
-	file_name = config.name_local_to_remote(file_name)
-	if force_update == True:
-		CACHE_CHUNK_INFO = {}
-	if CACHE_CHUNK_INFO.has_key(file_name) == False:
-		CACHE_CHUNK_INFO[file_name] = simple_client_for_test.cache_get_chunks_info(file_name)
-	#print CACHE_CHUNK_INFO[file_name]
-	return CACHE_CHUNK_INFO[file_name]
+	try:
+		file_name = config.name_local_to_remote(file_name)
+		if force_update == True:
+			CACHE_CHUNK_INFO = {}
+		if CACHE_CHUNK_INFO.has_key(file_name) == False:
+			CACHE_CHUNK_INFO[file_name] = simple_client_for_test.cache_get_chunks_info(file_name)
+		#print CACHE_CHUNK_INFO[file_name]
+		return CACHE_CHUNK_INFO[file_name]
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 
 def sync_download_file(file_name):
 	global CURRENT_OPEN_FILES,CACHE_CHUNK_INFO
-	if CACHE_CHUNK_INFO.has_key(file_name):
-		del CACHE_CHUNK_INFO[file_name]
-	# sync the file only when it is not opened
-	if CURRENT_OPEN_FILES.has_key(file_name):
-		print 'WARN: Sync download when file is opened'
-		return
-	# there is no optimization now! TODO: read only dirty
-	server_file_name = config.name_local_to_remote(file_name)
-	chunks_info = get_chunks_info(file_name)
-	# chunk_info format: ['file_size'], chunk_id:[server_indexes,]
-	chunks_id = []
-	##print chunks_info
-	for k in chunks_info.keys():
-		if k == 'file_size':
-			continue
-		chunks_id.append(k)
-	chunks_id = list(set(chunks_id))
-	chunks_id.sort()
-	# there should be no holes, TODO, conceal the holes to save spaces
-	assert(chunks_id == range(len(chunks_id)))
-	# open the file 
-	true_file_name = ROOT_DIR + file_name
-	#print true_file_name
-	f = open(true_file_name,'w')
-	content = simple_client_for_test.cache_read_file(config.name_local_to_remote(file_name), 0, len(chunks_id) * config.FILE_CHUNK_SIZE)
-	#print content,len(content)
-	f.write(content);
-	f.close()
+	try:
+		if CACHE_CHUNK_INFO.has_key(file_name):
+			del CACHE_CHUNK_INFO[file_name]
+		# sync the file only when it is not opened
+		if CURRENT_OPEN_FILES.has_key(file_name):
+			print 'WARN: Sync download when file is opened'
+			return
+		# there is no optimization now! TODO: read only dirty
+		server_file_name = config.name_local_to_remote(file_name)
+		chunks_info = get_chunks_info(file_name)
+		# chunk_info format: ['file_size'], chunk_id:[server_indexes,]
+		chunks_id = []
+		##print chunks_info
+		for k in chunks_info.keys():
+			if k == 'file_size':
+				continue
+			chunks_id.append(k)
+		chunks_id = list(set(chunks_id))
+		chunks_id.sort()
+		# there should be no holes, TODO, conceal the holes to save spaces
+		assert(chunks_id == range(len(chunks_id)))
+		# open the file 
+		true_file_name = ROOT_DIR + file_name
+		#print true_file_name
+		f = open(true_file_name,'w')
+		content = simple_client_for_test.cache_read_file(config.name_local_to_remote(file_name), 0, len(chunks_id) * config.FILE_CHUNK_SIZE)
+		#print content,len(content)
+		f.write(content);
+		f.close()
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 
 def sync_upload_file(file_name):
 	global CACHE_CHUNK_INFO,DIRTIES
-	true_local_file_name = ROOT_DIR + file_name
-	true_server_file_name = config.name_local_to_remote(file_name)
-	
-	# there is no optimization now! TODO: read only dirty
-	server_file_name = config.name_local_to_remote(file_name)
-	chunks_info = get_chunks_info(file_name)
-	file_size = chunks_info['file_size']
-	true_file_name = ROOT_DIR + file_name
-	print 'in sync_upload_file ', true_file_name
-	f = open(true_file_name,'r')
-	f_readed_content = f.read()
-	print 'in sync_upload_file ', len(f_readed_content)
-	print DIRTIES
-	# loop over the file 
-	chunk_ids = []
-	contents = []
-	for start_file in range(0,len(f_readed_content),config.FILE_CHUNK_SIZE):
-		if DIRTIES.has_key(file_name) == False or (start_file//config.FILE_CHUNK_SIZE) in DIRTIES[file_name]:
-			#print '#??',start_file,DIRTIES
-			chunk_ids.append(start_file // config.FILE_CHUNK_SIZE)
-			contents.extend(f_readed_content[start_file:min(start_file+config.FILE_CHUNK_SIZE, len(f_readed_content))])
-	print 'sync up load ', chunk_ids, ' ', file_name
-	if len(chunk_ids) > 0:		
-		content = simple_client_for_test.cache_write_file_algined(config.name_local_to_remote(file_name), contents,chunk_ids)
-		force_update()
-	print '##',file_name,chunk_ids
-	if DIRTIES.has_key(file_name):
-		DIRTIES[file_name] = []
-	f.close()
-	if CACHE_CHUNK_INFO.has_key(file_name):
-		del CACHE_CHUNK_INFO[file_name]
+	try:
+		true_local_file_name = ROOT_DIR + file_name
+		true_server_file_name = config.name_local_to_remote(file_name)
+		
+		# there is no optimization now! TODO: read only dirty
+		server_file_name = config.name_local_to_remote(file_name)
+		chunks_info = get_chunks_info(file_name)
+		file_size = chunks_info['file_size']
+		true_file_name = ROOT_DIR + file_name
+		print 'in sync_upload_file ', true_file_name
+		f = open(true_file_name,'r')
+		f_readed_content = f.read()
+		print 'in sync_upload_file ', len(f_readed_content)
+		print DIRTIES
+		# loop over the file 
+		chunk_ids = []
+		contents = []
+		for start_file in range(0,len(f_readed_content),config.FILE_CHUNK_SIZE):
+			if DIRTIES.has_key(file_name) == False or (start_file//config.FILE_CHUNK_SIZE) in DIRTIES[file_name]:
+				#print '#??',start_file,DIRTIES
+				chunk_ids.append(start_file // config.FILE_CHUNK_SIZE)
+				contents.extend(f_readed_content[start_file:min(start_file+config.FILE_CHUNK_SIZE, len(f_readed_content))])
+		print 'sync up load ', chunk_ids, ' ', file_name
+		if len(chunk_ids) > 0:		
+			content = simple_client_for_test.cache_write_file_algined(config.name_local_to_remote(file_name), contents,chunk_ids)
+			force_update()
+		print '##',file_name,chunk_ids
+		if DIRTIES.has_key(file_name):
+			DIRTIES[file_name] = []
+		f.close()
+		if CACHE_CHUNK_INFO.has_key(file_name):
+			del CACHE_CHUNK_INFO[file_name]
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 	
 
 def create_file(file_name,cpp_mode = 0):
@@ -147,97 +184,139 @@ def create_file(file_name,cpp_mode = 0):
 		if cpp_mode == 1:
 			return -1
 		raise file_name + ' Already Exist!'''
-	if file_exists_local(file_name):
-		if cpp_mode == 1:
-			return -2
-		raise file_name + ' Already Exist in Cache, you may try later'
-	# create the file in local
-	file_names = file_name.split('/');
-	if len(file_names[0]) == 0:
-		file_names = file_names[1:]
-	current = ROOT_DIR
-	for folder_name in file_names[0:-1]:
-		try:
-			os.mkdir(current + folder_name)
-		except:
-			pass
-		current = current + folder_name + '/'
-	f = open(current + file_names[-1],'w')
-	f.write('00010000')
-	f.close()
-	simple_client_for_test.cache_create_file(file_name)
-	force_update()
-	#sync_upload_file(file_name)
-	
-	return 0
+	try:
+		if file_exists_local(file_name):
+			if cpp_mode == 1:
+				return -2
+			raise file_name + ' Already Exist in Cache, you may try later'
+		# create the file in local
+		file_names = file_name.split('/');
+		if len(file_names[0]) == 0:
+			file_names = file_names[1:]
+		current = ROOT_DIR
+		for folder_name in file_names[0:-1]:
+			try:
+				os.mkdir(current + folder_name)
+			except:
+				pass
+			current = current + folder_name + '/'
+		f = open(current + file_names[-1],'w')
+		f.write('00010000')
+		f.close()
+		simple_client_for_test.cache_create_file(file_name)
+		force_update()
+		#sync_upload_file(file_name)		
+		return 0
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 	
 def open_file(file_name,mode,cpp_mode = 0):
 	print 'open_file mode ', str(mode)
-	global CURRENT_OPEN_FILES
-	# force a download_file
-	DIRTIES[file_name] = []
-	if 'w' in mode:
-		#simple_cliet_for_test.cache_del_file(config.name_local_to_remote(file_name))
-		#create_file(file_name)
-		CURRENT_OPEN_FILES[file_name] = 'W'		
+	try:
+		global CURRENT_OPEN_FILES
+		# force a download_file
+		DIRTIES[file_name] = []
+		if 'w' in mode:
+			#simple_cliet_for_test.cache_del_file(config.name_local_to_remote(file_name))
+			#create_file(file_name)
+			CURRENT_OPEN_FILES[file_name] = 'W'		
+			if cpp_mode == 1:
+				return 0
+			return open(ROOT_DIR + file_name, 'w')
+		# read mode, I thought
+		sync_download_file(file_name)
+		true_file_name = ROOT_DIR + file_name
+		CURRENT_OPEN_FILES[file_name] = 'R'
 		if cpp_mode == 1:
 			return 0
-		return open(ROOT_DIR + file_name, 'w')
-	# read mode, I thought
-	sync_download_file(file_name)
-	true_file_name = ROOT_DIR + file_name
-	CURRENT_OPEN_FILES[file_name] = 'R'
-	if cpp_mode == 1:
-		return 0
-	f = open(true_file_name,mode)
-	return f
+		f = open(true_file_name,mode)
+		return f
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 
 def del_file(file_name):
-	true_name = ROOT_DIR + file_name
-	remote = config.name_local_to_remote(file_name)
 	try:
-		simple_client_for_test.cache_del_file(remote)
-	except:
-		pass
-	list_all_files(True)
-	os.remove(true_name)
-	return 0
+		true_name = ROOT_DIR + file_name
+		remote = config.name_local_to_remote(file_name)
+		try:
+			simple_client_for_test.cache_del_file(remote)
+		except:
+			pass
+		list_all_files(True)
+		try:
+			os.remove(true_name)
+		except:
+			pass
+		return 0
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 	
 
 def close_file(f,file_name,cpp_mode=0):
-	global CACHE_CHUNK_INFO, CURRENT_OPEN_FILES
-	if cpp_mode == 0:
-		f.close()
-	if CURRENT_OPEN_FILES.has_key(file_name):
-		del CURRENT_OPEN_FILES[file_name]
-	if CACHE_CHUNK_INFO.has_key(file_name):
-		del CACHE_CHUNK_INFO[file_name]
-	#print 'close before upload'
-	sync_upload_file(file_name)
-	#print 'close after upload'
-	return 0
-	
+	try:
+		global CACHE_CHUNK_INFO, CURRENT_OPEN_FILES
+		if cpp_mode == 0:
+			f.close()
+		if CURRENT_OPEN_FILES.has_key(file_name):
+			del CURRENT_OPEN_FILES[file_name]
+		if CACHE_CHUNK_INFO.has_key(file_name):
+			del CACHE_CHUNK_INFO[file_name]
+		#print 'close before upload'
+		sync_upload_file(file_name)
+		#print 'close after upload'
+		return 0
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '	
 
 def read_file(f, file_name, start, size = 0):
-	f.seek(start)
-	if size == 0:
-		return f.read()
-	return f.read(size)
+	try:
+		f.seek(start)
+		if size == 0:
+			return f.read()
+		return f.read(size)
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 
 def make_dirty(file_name,start,size):
-	start_block = start // config.FILE_CHUNK_SIZE
-	end_block = (start + size -1) // config.FILE_CHUNK_SIZE	
-	DIRTIES[file_name].extend(range(start_block,end_block+1))
-	
+	try:
+		start_block = start // config.FILE_CHUNK_SIZE
+		end_block = (start + size -1) // config.FILE_CHUNK_SIZE	
+		DIRTIES[file_name].extend(range(start_block,end_block+1))
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '	
 
 def write_file(f, file_name, start, str_to_write):
-	f.seek(start)
-	
-	start_block = start // config.FILE_CHUNK_SIZE
-	num = f.write(str_to_write)
-	end_block = (start + len(str_to_write)-1) // config.FILE_CHUNK_SIZE	
-	DIRTIES[file_name].extend(range(start_block,end_block+1));
-	return num
+	try:
+		f.seek(start)
+		
+		start_block = start // config.FILE_CHUNK_SIZE
+		num = f.write(str_to_write)
+		end_block = (start + len(str_to_write)-1) // config.FILE_CHUNK_SIZE	
+		DIRTIES[file_name].extend(range(start_block,end_block+1));
+		return num
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 	
 # do the synchronization, upload the files that has been changed or added
 # (CURRENTLY NOT DO, upload/download will only be done in the close function
@@ -247,42 +326,54 @@ def write_file(f, file_name, start, str_to_write):
 # TODO, update only changed
 @lock_dec
 def synchronize():
-	global FILE_READ_TRANSACTION,FILE_WRITE_TRANSACTION
-	# update the CACHES
-	global CACHE_CHUNK_INFO, CACHE_FILES
-	# get all the files starting from ROOT_DIR
-	# CACHE_CHUNK_INFO not updated
-	tmp = simple_client_for_test.raw_cache_list_all_files()
-	# for those not in the folder now, create a fake file
-	for (filename,size) in tmp:
-		### print (filename,size)
-		cur_dir = ROOT_DIR
-		filename = filename.split('/')
-		if len(filename[0]) == 0:
-			filename = filename[1:]
-		for folder_name in filename[0:-1]:
-			try:
-				os.mkdir(cur_dir + folder_name)
-			except:
-				pass
-			cur_dir = cur_dir + folder_name + '/'
-		# test whether this file exist
-		if os.path.exists(cur_dir + filename[-1]):
-			continue
-		# currently for simplicity, downloading it		
-		sync_download_file(cur_dir[len(ROOT_DIR):] + filename[-1])
-		# create a fake file
-		###f = open(cur_dir+filename[-1],'w')
-		###f.close()			
-	
-	# update the CACHE_CHUNK_INFO
-	list_all_files(True)	
+	try:
+		global FILE_READ_TRANSACTION,FILE_WRITE_TRANSACTION
+		# update the CACHES
+		global CACHE_CHUNK_INFO, CACHE_FILES
+		# get all the files starting from ROOT_DIR
+		# CACHE_CHUNK_INFO not updated
+		tmp = simple_client_for_test.raw_cache_list_all_files()
+		# for those not in the folder now, create a fake file
+		for (filename,size) in tmp:
+			### print (filename,size)
+			cur_dir = ROOT_DIR
+			filename = filename.split('/')
+			if len(filename[0]) == 0:
+				filename = filename[1:]
+			for folder_name in filename[0:-1]:
+				try:
+					os.mkdir(cur_dir + folder_name)
+				except:
+					pass
+				cur_dir = cur_dir + folder_name + '/'
+			# test whether this file exist
+			if os.path.exists(cur_dir + filename[-1]):
+				continue
+			# currently for simplicity, downloading it		
+			sync_download_file(cur_dir[len(ROOT_DIR):] + filename[-1])
+			# create a fake file
+			###f = open(cur_dir+filename[-1],'w')
+			###f.close()			
+		
+		# update the CACHE_CHUNK_INFO
+		list_all_files(True)	
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 
 def get_local_size(file_name):
-	dir = simple_client_for_test.CLIENT_ROOT_DIR + file_name
-	size = os.stat(dir).st_size
-	print '@@@@@@@@@@@@get_local_size ', file_name, size,dir	
-	return size
+	try:
+		dir = simple_client_for_test.CLIENT_ROOT_DIR + file_name
+		size = os.stat(dir).st_size
+		print '@@@@@@@@@@@@get_local_size ', file_name, size,dir	
+		return size
+	except Exception as e:
+		print '\033[91m'
+		print 'Uncaught Exception ',e
+		traceback.print_exc()
+		print '\033[0m '
 	
 import sys
 	
@@ -316,12 +407,17 @@ def test():
 		pass
 	try:
 		del_file('file_size1');
+		del_file('hh1@.holder');
 	except Exception as e:
 		pass
 	try:
 		del_file('file_size2');
 	except Exception as e:
 		pass
+	
+	create_file("hh1@.holder")
+	del_file("hh1@.holder")
+	create_file("hh1@.holder")
 
 	create_file('wubaolin')
 	create_file('wubaolin2')

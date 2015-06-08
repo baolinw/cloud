@@ -209,7 +209,17 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 static int hello_rmdir(const char* path)
 {
 	cout << LOG_H << "RMDIR " << string(path) << endl;
-	return -EACCES;
+	string folder_name(path);
+	if(strcmp(path,"/") == 0) return -EACCES;
+	if(folder_name[0] == '/') folder_name = folder_name.substr(1);
+	folder_name = convert_local_to_remote(folder_name);
+	folder_name += FOLDER_SPLIT_STR + FOLDER_FAKE_FILE;
+	
+	StoreEngine* se = StoreEngine::get_instance();
+	if(se->del_file(folder_name) < 0)
+		return -EACCES;
+	se->force_update();	
+	return 0;
 }
 struct FILE_OPEN_STRUCT {
 	FILE_OPEN_STRUCT(){ fh = NULL; is_append = false; is_truncted = false; };	

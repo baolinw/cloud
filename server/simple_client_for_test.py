@@ -10,6 +10,7 @@ import local_api.lib_local
 import config
 import simple_httpserver
 import meta_puller
+import traceback
 from config import name_local_to_remote;
 from config import name_remote_to_local;
 # I need the service object to do actual upload/download
@@ -18,13 +19,13 @@ WRITE_FAIL_MODE = 0 # 0 normal, 1: no update no commit and no error recovery, on
 # we don't do anything relating to CREATE fail, we don't have time to do it, just use the write to illustrate it
 SERVERS.append( { \
 		'id':0, \
-		'live': 1, \
-		'name' : 'Google', \
-		'server_object' : google_api.lib_google.create_service_object('test'), \
-		'get_all_file_names' : google_api.lib_google.get_all_file_names, \
-		'download_file' : google_api.lib_google.download_file, \
-		'delete_file' :  google_api.lib_google.delete_file, \
-		'upload_file' : google_api.lib_google.upload_file
+		'live':1, \
+		'name' : 'Local', \
+		'server_object' : local_api.lib_local.create_service_object('wbl'), \
+		'get_all_file_names' : local_api.lib_local.get_all_file_names, \
+		'download_file' : local_api.lib_local.download_file, \
+		'delete_file' :  local_api.lib_local.delete_file, \
+		'upload_file' : local_api.lib_local.upload_file
 	})
 SERVERS.append( { \
 		'id':1, \
@@ -76,23 +77,36 @@ CHUNK_SIZE = config.FILE_CHUNK_SIZE
 def cache_list_all_files():
 	param = {'folder_name':['/']} # the server doesn't care about the folder name, clients care
 	ret = {'dirs':{}, 'files':{}}
-	buf = simple_httpserver.handle_get_all_files(param)
+	print 'Python cache_list_all_files BEFORE'
+	for file_name_index in range(4):
+		print file_name_index,param
+	try:
+		print 'get_all_files begin FFFFAKE'		
+		buf = simple_httpserver.handle_get_all_files(param)
+	except Exception as e:
+		print 'Except ', e
+		traceback.print_exc()
+	print 'Python cache_list_all_files ', buf
 	buf = buf.split(':')
-	assert(buf[0] == '0')
-	len_files = int(buf[1])
-	for i in range(len_files):
-		file_name,size,is_foler = buf[2 + i*3:5 + i*3] # is_folder is deprecated
-		file_name = name_remote_to_local(file_name); file_name = file_name.split('/');
-		if len(file_name[0]) == 0:
-			file_name = file_name[1:]
-		len_path = len(file_name)
-		cur_map = ret
-		for path in file_name[0:-1]:
-			if not cur_map['dirs'].has_key(path):
-				cur_map['dirs'][path] = {'dirs':{},'files':{}}
-			cur_map = cur_map['dirs'][path]
-		assert cur_map['files'].has_key(file_name[-1]) == False
-		cur_map['files'][file_name[-1]] = size		
+	try:
+		assert(buf[0] == '0')
+		len_files = int(buf[1])
+		for i in range(len_files):
+			file_name,size,is_foler = buf[2 + i*3:5 + i*3] # is_folder is deprecated
+			file_name = name_remote_to_local(file_name); file_name = file_name.split('/');
+			if len(file_name[0]) == 0:
+				file_name = file_name[1:]
+			len_path = len(file_name)
+			cur_map = ret
+			for path in file_name[0:-1]:
+				if not cur_map['dirs'].has_key(path):
+					cur_map['dirs'][path] = {'dirs':{},'files':{}}
+				cur_map = cur_map['dirs'][path]
+			assert cur_map['files'].has_key(file_name[-1]) == False
+			cur_map['files'][file_name[-1]] = size		
+	except Exception as e:
+		print 'Python Exception', e
+	print 'Python cache_list_all_files ret', ret
 	return ret
 	
 def raw_cache_list_all_files():
