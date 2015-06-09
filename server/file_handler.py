@@ -2,7 +2,6 @@
 # it is the main application level in the server
 # our goal is to make the server as light weight as possible
 import time
-import mysql_api
 import trans
 import meta_puller
 import config
