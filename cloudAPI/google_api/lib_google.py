@@ -4,7 +4,7 @@ import os
 import sys
 import json
 import io
-
+import time
 from apiclient import discovery
 from oauth2client import file
 from oauth2client import client
@@ -13,12 +13,14 @@ import apiclient
 import apiclient.http
 
 # Define sample variables.
-_BUCKET_NAME = 'mmmbbb'
+BUCKETS = ['mmmbbb','bbbmmm','cccbbb']
 _API_VERSION = 'v1'
+g_service = None
 
 CLIENT_SECRETS = os.path.join(os.path.dirname(__file__), 'client_secrets.json')
 
 def upload_file(service,from_file_name,to_file_name):
+	global g_service,BUCKETS
 	# try delete it first
 	try:
 		delete_file(service,'',"/" + to_file_name)
@@ -36,15 +38,30 @@ def upload_file(service,from_file_name,to_file_name):
 			#'crc32c': 'rPZE1w==',
 
 	}
-	req = service.objects().insert(
-			bucket=_BUCKET_NAME,
+	req = g_service.objects().insert(
+			bucket=BUCKETS[service],
 			name=to_file_name,
 			body=object_resource,     # optional
 			media_body=media)
 	resp = req.execute()
 	#print json.dumps(resp, indent=2)
+	
+def copy_file(service,service_to,file_name,file_name_to):
+	global g_service,BUCKETS
+	object_resource = {
+			'contentLanguage': 'en',
+			'contentType' : 'file',			
+	}
+	req = g_service.objects().copy(
+			sourceBucket=BUCKETS[service],
+			sourceObject = file_name,
+			destinationBucket=BUCKETS[service_to],
+			destinationObject = file_name_to,
+			body=object_resource)
+	resp = req.execute()
 
 def upload_string(service, str_to_upload,to_file_name):
+	global g_service,BUCKETS
 	# The BytesIO object may be replaced with any io.Base instance.
 	media = apiclient.http.MediaIoBaseUpload(io.BytesIO(str_to_upload), 'text/plain')
 	# All object_resource fields here are optional.
@@ -55,23 +72,25 @@ def upload_string(service, str_to_upload,to_file_name):
 			#'crc32c': 'rPZE1w==',
 
 	}
-	req = service.objects().insert(
-			bucket=_BUCKET_NAME,
+	req = g_service.objects().insert(
+			bucket=BUCKETS[service],
 			name=to_file_name,
 			body=object_resource,     # optional
 			media_body=media)
 	resp = req.execute()
 
 def delete_file(service,object_name):
-	service.objects().delete(
-        bucket=_BUCKET_NAME,
+	global g_service,BUCKETS
+	g_service.objects().delete(
+        bucket=BUCKETS[service],
         object=object_name).execute()
 	pass
 	
 def download_file(service ,object_name, to_file_name):
+	global g_service,BUCKETS
 	# Get Payload Data
-	req = service.objects().get_media(
-			bucket=_BUCKET_NAME,
+	req = g_service.objects().get_media(
+			bucket=BUCKETS[service],
 			object=object_name)
 	# The BytesIO object may be replaced with any io.Base instance.
 	fh = io.BytesIO()
@@ -89,9 +108,10 @@ def download_file(service ,object_name, to_file_name):
 	return v
 
 def get_all_file_names(service):
+	global g_service, BUCKETS
 	try:
 		fields_to_return = 'nextPageToken,items(name,size,contentType,metadata(my-key))'
-		req = service.objects().list(bucket=_BUCKET_NAME, fields=fields_to_return)
+		req = g_service.objects().list(bucket=BUCKETS[service], fields=fields_to_return)
 		# If you have too many items to list in one request, list_next() will
 		# automatically handle paging with the pageToken.
 		file_names = []
@@ -102,7 +122,7 @@ def get_all_file_names(service):
 				break;
 			for name in resp['items']:
 				file_names.append((name['name'],int(name['size'])))
-			req = service.objects().list_next(req, resp)
+			req = g_service.objects().list_next(req, resp)
 		return file_names
 
 	except client.AccessTokenRefreshError:
@@ -111,6 +131,9 @@ def get_all_file_names(service):
 	
 
 def create_service_object(extra_info):
+	global g_service
+	if g_service != None:
+		return extra_info
 	storage = file.Storage(os.path.join(os.path.dirname(__file__), 'sample.dat'))
 	credentials = storage.get()
 	if credentials is None or credentials.invalid:
@@ -123,7 +146,8 @@ def create_service_object(extra_info):
 
 	# Construct the service object for the interacting with the Cloud Storage API.
 	service = discovery.build('storage', _API_VERSION, http=http)
-	return service
+	g_service = service
+	return extra_info
 	
 def reinit_storage(argv):
 	parser = argparse.ArgumentParser(
@@ -146,8 +170,18 @@ def reinit_storage(argv):
 if __name__ == "__main__":
 	# --noauth_local_webserver
 	# reinit_storage(sys.argv)
-	s = create_service_object()
-	print get_all_file_names(s,_BUCKET_NAME)
+	s = create_service_object(0)
+	a = time.time()
+	get_all_file_names(s)
+	b = time.time()
+	print b - a, ' ss'
+	a = open('/tmp/abc','w')
+	a.write('a'*2000000)
+	a.close()
+	a = time.time()
+	upload_file(s,'/tmp/abc','abc')
+	b = time.time()
+	print b - a, ' S'
 #download_file(s,_BUCKET_NAME,'hehe.txt')
 #upload_string(s,_BUCKET_NAME,'ylsistuzi','tuzi.txt')
 #delete_file(s,_BUCKET_NAME,'tuzi.txt')

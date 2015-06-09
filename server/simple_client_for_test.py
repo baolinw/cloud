@@ -3,6 +3,8 @@
 import os
 import google_api
 import google_api.lib_google
+import google_api.lib_google2
+import google_api.lib_google3
 import dropbox_api
 import dropbox_api.lib_dropbox
 import local_api
@@ -11,12 +13,47 @@ import config
 import simple_httpserver
 import meta_puller
 import traceback
+import time
 from config import name_local_to_remote;
 from config import name_remote_to_local;
 # I need the service object to do actual upload/download
 SERVERS = []
 WRITE_FAIL_MODE = 0 # 0 normal, 1: no update no commit and no error recovery, only hold, 2: partial update without commit, 
 # we don't do anything relating to CREATE fail, we don't have time to do it, just use the write to illustrate it
+SERVERS.append( { \
+		'id':0, \
+		'live':1, \
+		'name' : 'Google', \
+		'server_object' : google_api.lib_google.create_service_object(0), \
+		'get_all_file_names' : google_api.lib_google.get_all_file_names, \
+		'download_file' : google_api.lib_google.download_file, \
+		'delete_file' :  google_api.lib_google.delete_file, \
+		'upload_file' : google_api.lib_google.upload_file,\
+		'copy_file' : google_api.lib_google.copy_file, \
+	})
+SERVERS.append( { \
+	'id':1, \
+	'live':1, \
+	'name' : 'Google', \
+	'server_object' : google_api.lib_google.create_service_object(1), \
+	'get_all_file_names' : google_api.lib_google.get_all_file_names, \
+	'download_file' : google_api.lib_google.download_file, \
+	'delete_file' :  google_api.lib_google.delete_file, \
+	'upload_file' : google_api.lib_google.upload_file,\
+	'copy_file' : google_api.lib_google.copy_file, \
+})
+SERVERS.append( { \
+	'id':2, \
+	'live':1, \
+	'name' : 'Google', \
+	'server_object' : google_api.lib_google.create_service_object(2), \
+	'get_all_file_names' : google_api.lib_google.get_all_file_names, \
+	'download_file' : google_api.lib_google.download_file, \
+	'delete_file' :  google_api.lib_google.delete_file, \
+	'upload_file' : google_api.lib_google.upload_file,\
+	'copy_file' : google_api.lib_google.copy_file, \
+})
+'''
 SERVERS.append( { \
 		'id':0, \
 		'live':1, \
@@ -46,7 +83,7 @@ SERVERS.append( { \
 		'download_file' : local_api.lib_local.download_file, \
 		'delete_file' :  local_api.lib_local.delete_file, \
 		'upload_file' : local_api.lib_local.upload_file
-	})
+	}) '''
 '''
 SERVERS.append( { \
 	'id':1, \
@@ -322,6 +359,7 @@ def redo_logs():
 # [ [file_name,to_write,chunk_ids,chunk_ids_wroted,status], ... ]
 # simplified version of cache_write_file, with specified chunk_id
 def cache_write_file_algined(file_name,to_write,chunk_ids,real_file_length, log_it = True):
+	log_it = config.SAVE_FAKE_LOG
 	global WRITE_FAIL_MODE
 	assert len(to_write) > 0
 	# save the transactions now
@@ -369,7 +407,9 @@ def cache_write_file_algined(file_name,to_write,chunk_ids,real_file_length, log_
 	str_chunk_ids = [str(i) for i in chunk_ids]
 	str_chunk_sizes = ','.join([str(config.FILE_CHUNK_SIZE)] * len(chunk_ids))
 	#print str_chunk_sizes
+	a = time.time()
 	buf = simple_httpserver.handle_write_file({'file_name':[file_name], 'chunk_ids':[','.join(str_chunk_ids)], 'chunk_size':[str_chunk_sizes]})
+	print 'handle_write costs ', time.time() - a
 	#print buf
 	assert(buf[0] == '0')
 	trans_id = int(buf.split(':')[1])
@@ -405,10 +445,13 @@ def cache_write_file_algined(file_name,to_write,chunk_ids,real_file_length, log_
 			f.close()
 			target_file_name = str(chunk_ids[index]) + '_' + file_name + '.trans' + str(trans_id)
 			#print target_file_name,"HEHEHE"
+			a = time.time()
 			s['upload_file'](s['server_object'], '/tmp/hehe', target_file_name)
-			
+			print 'upload one chunk costs ', time.time() - a
+	a = time.time()		
 	if WRITE_FAIL_MODE == 0:			
 		buf = simple_httpserver.handle_commit_trans({'id':[trans_id]})
+		print 'the commit cost ', time.time() - a
 		assert(buf[0] == '0')
 		if log_it:
 			logs = pickle.load(open(WRITE_LOG_FILE,'r'))

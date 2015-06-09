@@ -9,6 +9,7 @@ import config
 import random
 import pickle
 import os
+import time
 
 # the "transaction" is implemented as follows:
 # using some trick to give the client some files to handle, 
@@ -325,7 +326,7 @@ def commit_write_file(trans_id):
 	global SERVER_LOG_FILE_NAME
 	if trans.has_key(trans_id) == False or trans.get_key(trans_id) == None:
 		return '-1:' + 'No such Trans:' + str(trans_id)
-	if os.path.exists(SERVER_LOG_FILE_NAME) == False:
+	if config.SAVE_FAKE_LOG == True and os.path.exists(SERVER_LOG_FILE_NAME) == False:
 		f = open(SERVER_LOG_FILE_NAME,'w')
 		pickle.dump([],f)
 		f.close()
@@ -337,30 +338,36 @@ def commit_write_file(trans_id):
 	chunks = Trans[3]
 	chunk_sizes = Trans[4]
 	
-	f = open(SERVER_LOG_FILE_NAME,'r')
-	logs = pickle.load(f)
-	f.close()
-	logs.append([trans_id,file_name,chunks,chunk_sizes,target_servers,[],0])
-	f = open(SERVER_LOG_FILE_NAME,'w')
-	pickle.dump(logs,f)
-	f.close()
+	if config.SAVE_FAKE_LOG == True :
+		f = open(SERVER_LOG_FILE_NAME,'r')
+		logs = pickle.load(f)
+		f.close()
+		logs.append([trans_id,file_name,chunks,chunk_sizes,target_servers,[],0])
+		f = open(SERVER_LOG_FILE_NAME,'w')
+		pickle.dump(logs,f)
+		f.close()
 	
 	global FT_MODE
 	if FT_MODE == 0:
+		a = time.time()
 		meta_puller.update_file_by_renaming(trans_id, file_name, chunks, chunk_sizes, target_servers)
-		logs[-1][-2] = target_servers
-		logs[-1][-1] = 1		
+		print 'handle commit renaming cost ', time.time() - a, ' s'
+		if config.SAVE_FAKE_LOG == True:
+			logs[-1][-2] = target_servers
+			logs[-1][-1] = 1		
 	elif FT_MODE == 1:
 		pass
 	else: #2, partial
 		target_servers = target_servers[0:1]
 		meta_puller.update_file_by_renaming(trans_id, file_name, chunks, chunk_sizes, target_servers)
-		logs[-1][-2] = target_servers
-		logs[-1][-1] = 0
+		if config.SAVE_FAKE_LOG == True:
+			logs[-1][-2] = target_servers
+			logs[-1][-1] = 0
 
-	f = open(SERVER_LOG_FILE_NAME,'w')
-	pickle.dump(logs,f)
-	f.close()		
+	if config.SAVE_FAKE_LOG == True:
+		f = open(SERVER_LOG_FILE_NAME,'w')
+		pickle.dump(logs,f)
+		f.close()		
 	
 	for c in chunks:
 		del WriteFileLock[file_name][c]

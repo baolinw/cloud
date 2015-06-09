@@ -3,6 +3,8 @@
 import os
 import google_api
 import google_api.lib_google
+import google_api.lib_google2
+import google_api.lib_google3
 import dropbox_api
 import dropbox_api.lib_dropbox
 import config
@@ -10,6 +12,7 @@ import local_api
 import local_api.lib_local
 import random
 import log
+import time
 
 # server descriptor 
 # every server is a dict, having an id, name, some function pointers
@@ -25,6 +28,40 @@ def init_config():
 	# currently I wrote the configurations manually, TODO: using config file
 	SERVERS = []
 	# init the google server
+	SERVERS.append( { \
+		'id':0, \
+		'live':1, \
+		'name' : 'Google', \
+		'server_object' : google_api.lib_google.create_service_object(0), \
+		'get_all_file_names' : google_api.lib_google.get_all_file_names, \
+		'download_file' : google_api.lib_google.download_file, \
+		'delete_file' :  google_api.lib_google.delete_file, \
+		'upload_file' : google_api.lib_google.upload_file,\
+		'copy_file' : google_api.lib_google.copy_file, \
+	})
+	SERVERS.append( { \
+		'id':1, \
+		'live':1, \
+		'name' : 'Google', \
+		'server_object' : google_api.lib_google.create_service_object(1), \
+		'get_all_file_names' : google_api.lib_google.get_all_file_names, \
+		'download_file' : google_api.lib_google.download_file, \
+		'delete_file' :  google_api.lib_google.delete_file, \
+		'upload_file' : google_api.lib_google.upload_file,\
+		'copy_file' : google_api.lib_google.copy_file, \
+	})
+	SERVERS.append( { \
+		'id':2, \
+		'live':1, \
+		'name' : 'Google', \
+		'server_object' : google_api.lib_google.create_service_object(2), \
+		'get_all_file_names' : google_api.lib_google.get_all_file_names, \
+		'download_file' : google_api.lib_google.download_file, \
+		'delete_file' :  google_api.lib_google.delete_file, \
+		'upload_file' : google_api.lib_google.upload_file,\
+		'copy_file' : google_api.lib_google.copy_file, \
+	})
+	'''
 	SERVERS.append( { \
 		'id':0, \
 		'live':1, \
@@ -55,7 +92,6 @@ def init_config():
 		'delete_file' :  local_api.lib_local.delete_file, \
 		'upload_file' : local_api.lib_local.upload_file
 	})	
-	'''
 	SERVERS.append( { \
 		'id':1, \
 		'name' : 'Google', \
@@ -175,8 +211,13 @@ def update_file_by_renaming(trans_id,file_name,chunk_ids, chunk_sizes, servers):
 			to_get_file_name = str(chunk_ids[index]) + '_' + file_name + ".trans" + str(trans_id)
 			overide_file_name = str(chunk_ids[index]) + '_' + file_name
 			s = SERVERS[server]
-			s['download_file'](s['server_object'],to_get_file_name, '/tmp/' + to_get_file_name)
-			s['upload_file'](s['server_object'], '/tmp/' + to_get_file_name, overide_file_name);
+			if s.has_key('copy_file'):
+				a = time.time()
+				s['copy_file'](s['server_object'],s['server_object'],to_get_file_name,overide_file_name)
+				print 'the copyfile cost ', time.time() - a
+			else:
+				s['download_file'](s['server_object'],to_get_file_name, '/tmp/' + to_get_file_name)
+				s['upload_file'](s['server_object'], '/tmp/' + to_get_file_name, overide_file_name);
 			log.log_write(server,file_name,chunk_ids[index],trans_id)
 			s['delete_file'](s['server_object'], to_get_file_name);
 			# update the info in FILES
@@ -226,9 +267,11 @@ def copy_file_by_renaming(trans_id, file_name, chunks, target_server):
 		s = SERVERS[s_id]
 		to_get_file_name = str(c_id) + '_' + file_name 
 		overide_file_name = str(c_id) + '_' + file_name + '.trans' + str(trans_id)
-		
-		s['download_file'](s['server_object'],to_get_file_name, '/tmp/' + to_get_file_name)
-		s['upload_file'](s['server_object'], '/tmp/' + to_get_file_name, overide_file_name);
+		if s.has_key('copy_file'):
+				s['copy_file'](s['server_object'],s['server_object'],to_get_file_name,overide_file_name)
+		else:
+			s['download_file'](s['server_object'],to_get_file_name, '/tmp/' + to_get_file_name)
+			s['upload_file'](s['server_object'], '/tmp/' + to_get_file_name, overide_file_name);
 
 
 def del_file(file_name):
