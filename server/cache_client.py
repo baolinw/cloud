@@ -10,6 +10,7 @@ import simple_httpserver
 import log
 import sys
 import traceback
+import sets
 
 CACHE_FILES = {};
 lock = Lock()
@@ -298,6 +299,7 @@ def make_dirty(file_name,start,size):
 		start_block = start // config.FILE_CHUNK_SIZE
 		end_block = (start + size -1) // config.FILE_CHUNK_SIZE	
 		DIRTIES[file_name].extend(range(start_block,end_block+1))
+		DIRTIES[file_name] = list(sets.Set(DIRTIES[file_name]))
 	except Exception as e:
 		print '\033[91m'
 		print 'Uncaught Exception ',e
@@ -312,6 +314,7 @@ def write_file(f, file_name, start, str_to_write):
 		num = f.write(str_to_write)
 		end_block = (start + len(str_to_write)-1) // config.FILE_CHUNK_SIZE	
 		DIRTIES[file_name].extend(range(start_block,end_block+1));
+		DIRTIES[file_name] = list(sets.Set(DIRTIES[file_name]))
 		return num
 	except Exception as e:
 		print '\033[91m'
