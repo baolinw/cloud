@@ -102,7 +102,7 @@ def get_chunks_info(file_name,force_update = False):
 		traceback.print_exc()
 		print '\033[0m '
 
-def sync_download_file(file_name):
+def sync_download_file(file_name,first_time = True):
 	global CURRENT_OPEN_FILES,CACHE_CHUNK_INFO
 	try:
 		if CACHE_CHUNK_INFO.has_key(file_name):
@@ -136,6 +136,13 @@ def sync_download_file(file_name):
 	except Exception as e:
 		print '\033[91m'
 		print 'Uncaught Exception ',e
+		# we try to handle this request another time, if we failed again, we will report it, for demo purpose
+		if first_time:
+			try:
+				force_update()
+				sync_download_file(file_name,first_time = False)
+			except Exception as ee:
+				print 'Exception in Exception: No way to rehandle now: ',ee
 		traceback.print_exc()
 		print '\033[0m '
 

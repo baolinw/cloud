@@ -1,6 +1,6 @@
 #All Configurations
 FILE_DUPLICATE_NUM = 2 # how many replications stored
-FILE_CHUNK_SIZE = 1024*2048 # 1KB, the chunk size, will be larger when finishing debugging
+FILE_CHUNK_SIZE = 1024*1024 # 1KB, the chunk size, will be larger when finishing debugging
 HEADER_LENGTH = 16 # header size
 SAVE_FAKE_LOG = False # for single point failure, will greatly reduce the performance
 
