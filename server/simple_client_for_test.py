@@ -123,16 +123,16 @@ CHUNK_SIZE = config.FILE_CHUNK_SIZE
 def cache_list_all_files():
 	param = {'folder_name':['/']} # the server doesn't care about the folder name, clients care
 	ret = {'dirs':{}, 'files':{}}
-	print 'Python cache_list_all_files BEFORE'
-	for file_name_index in range(4):
-		print file_name_index,param
+	#print 'Python cache_list_all_files BEFORE'
+	#for file_name_index in range(4):
+		#print file_name_index,param
 	try:
-		print 'get_all_files begin FFFFAKE'		
+		#print 'get_all_files begin FFFFAKE'		
 		buf = simple_httpserver.handle_get_all_files(param)
 	except Exception as e:
-		print 'Except ', e
+		#print 'Except ', e
 		traceback.print_exc()
-	print 'Python cache_list_all_files ', buf
+	#print 'Python cache_list_all_files ', buf
 	buf = buf.split(':')
 	try:
 		assert(buf[0] == '0')
@@ -152,7 +152,7 @@ def cache_list_all_files():
 			cur_map['files'][file_name[-1]] = size		
 	except Exception as e:
 		print 'Python Exception', e
-	print 'Python cache_list_all_files ret', ret
+	#print 'Python cache_list_all_files ret', ret
 	return ret
 	
 def raw_cache_list_all_files():
@@ -208,7 +208,7 @@ def cache_create_file(file_name):
 	file_name = name_local_to_remote(file_name)
 	buf = simple_httpserver.handle_create_file({'file_name':[file_name]})
 	buf = buf.split(':')
-	print buf
+	#print buf
 	if buf[0] != '0':
 		raise 'File: ' + file_name + ' could not be created! ' + buf[1]
 	trans_id = int(buf[1])
@@ -259,7 +259,7 @@ def cache_read_file(file_name, start, size):
 		raise ' Read error, chunk info wrong!'
 	str_chunk_ids = [str(i) for i in chunk_ids]
 	buf = simple_httpserver.handle_read_file({'file_name':[file_name], 'chunk_ids':[','.join(str_chunk_ids)]})
-	print buf
+	#print buf
 	assert(buf[0] == '0')
 	
 	tmp = buf.split(':')
@@ -418,7 +418,7 @@ def cache_write_file_algined(file_name,to_write,chunk_ids,real_file_length, log_
 	#print str_chunk_sizes
 	a = time.time()
 	buf = simple_httpserver.handle_write_file({'file_name':[file_name], 'chunk_ids':[','.join(str_chunk_ids)], 'chunk_size':[str_chunk_sizes]})
-	print 'handle_write costs ', time.time() - a
+	#print 'handle_write costs ', time.time() - a
 	#print buf
 	assert(buf[0] == '0')
 	trans_id = int(buf.split(':')[1])
@@ -456,11 +456,11 @@ def cache_write_file_algined(file_name,to_write,chunk_ids,real_file_length, log_
 			#print target_file_name,"HEHEHE"
 			a = time.time()
 			s['upload_file'](s['server_object'], '/tmp/hehe', target_file_name)
-			print 'upload one chunk costs ', time.time() - a
+			#print 'upload one chunk costs ', time.time() - a
 	a = time.time()		
 	if WRITE_FAIL_MODE == 0:			
 		buf = simple_httpserver.handle_commit_trans({'id':[trans_id]})
-		print 'the commit cost ', time.time() - a
+		#print 'the commit cost ', time.time() - a
 		assert(buf[0] == '0')
 		if log_it:
 			logs = pickle.load(open(WRITE_LOG_FILE,'r'))

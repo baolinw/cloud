@@ -40,19 +40,19 @@ def get_all_files(folder_name):
 	ret = []
 		
 	all_files =  meta_puller.get_all_file_names()
-	print 'all files ', all_files	
+	#print 'all files ', all_files	
 
 	for file_name_index in range(len(all_files)):
 		file_name = all_files[file_name_index]
 		file_name_index += 1
-		print 'file_name ',file_name
+		#print 'file_name ',file_name
 		tmp = meta_puller.get_file_meta_info(file_name)
 		file_map = {}
 		file_map['file_name'] = file_name
 		file_map['size'] = tmp[1]
 		file_map['is_folder'] = tmp[2]
 		ret.append(file_map)
-		print 'file_name ', file_name, ' Loop Ends', all_files
+		#print 'file_name ', file_name, ' Loop Ends', all_files
 	return ret	
 
 def get_all_chunks_of_file(file_name):
@@ -350,7 +350,7 @@ def commit_write_file(trans_id):
 	if FT_MODE == 0:
 		a = time.time()
 		meta_puller.update_file_by_renaming(trans_id, file_name, chunks, chunk_sizes, target_servers)
-		print 'handle commit renaming cost ', time.time() - a, ' s'
+		#print 'handle commit renaming cost ', time.time() - a, ' s'
 		if config.SAVE_FAKE_LOG == True:
 			logs[-1][-2] = target_servers
 			logs[-1][-1] = 1		

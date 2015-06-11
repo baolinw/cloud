@@ -29,6 +29,11 @@ public:
 	void remove_local(const std::string& file_name);
 	void make_dirty(const std::string& file_name, int start, int size);
 	int get_true_length(const std::string& file_name);
+	//for demo purpose
+	void fail_server(std::string id);
+	void ok_server(std::string id);
+	std::string get_all_file_names(std::string id);
+	std::vector<int> get_server_status();
 public: // Singleton
 	static StoreEngine* get_instance();
 private:

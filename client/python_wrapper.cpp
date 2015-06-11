@@ -171,6 +171,42 @@ static void make_dirty(PyObject* pDict,const char* file_name,int start,int size)
 	//if(result) Py_DECREF(result);
 }
 
+void StoreEngine::fail_server(std::string id)
+{
+	PyObject* pFunc = PyDict_GetItemString(_pDict,"fail_server");
+	if(!pFunc) cerr << "Can't find fail_server in the module" << endl;
+	PyObject* result = PyObject_CallFunction(pFunc,"s",id.c_str());
+}
+
+void StoreEngine::ok_server(std::string id)
+{
+	PyObject* pFunc = PyDict_GetItemString(_pDict,"ok_server");
+	if(!pFunc) cerr << "Can't find ok_server in the module" << endl;
+	PyObject* result = PyObject_CallFunction(pFunc,"s",id.c_str());
+}
+std::string StoreEngine::get_all_file_names(std::string id)
+{
+	PyObject* pFunc = PyDict_GetItemString(_pDict,"get_all_file_names");
+	if(!pFunc) cerr << "Can't find get_all_file_names in the module" << endl;
+	PyObject* result = PyObject_CallFunction(pFunc,"s",id.c_str());
+	char* str = NULL;
+	PyArg_Parse(result,"s",&str);
+	return string(str);	
+}
+std::vector<int> StoreEngine::get_server_status()
+{
+	PyObject* pFunc = PyDict_GetItemString(_pDict,"get_server_status");
+	if(!pFunc) cerr << "Can't find get_server_status in the module" << endl;
+	PyObject* result = PyObject_CallFunction(pFunc,NULL);
+	char* str = NULL;
+	PyArg_Parse(result,"s",&str);
+	string s = string(str);	
+	vector<int> ret;
+	for(char c : s) 
+		ret.push_back(c - '0');
+	return ret;
+}
+	
 // THe implementation of the class functions
 StoreEngine* StoreEngine::_instance;
 void StoreEngine::Init(int argc,char** argv)

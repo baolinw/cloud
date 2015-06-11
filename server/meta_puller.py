@@ -301,6 +301,10 @@ def del_file(file_name):
 	del FILES[file_name]
 	return 0,'Success'
 
+def garbage_collecct():
+	pass
+
+
 def ok_server(server_id):
 	global SERVERS,FILES
 	assert server_id < len(SERVERS)
@@ -373,8 +377,8 @@ def migration(file_name,chunk_id,servers):
 		else:
 			alives += 1
 	remain = config.FILE_DUPLICATE_NUM - alives
-	if remain < 0:
-		return
+	if remain <= 0:
+		raise Exception('all server lost exception name:' + file_name)
 	# choose the first one to replicate
 	source = -1
 	for i in range(len(servers)):

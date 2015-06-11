@@ -11,6 +11,7 @@ import log
 import sys
 import traceback
 import sets
+import meta_puller
 
 CACHE_FILES = {};
 lock = Lock()
@@ -385,10 +386,77 @@ def get_local_size(file_name):
 		print 'Uncaught Exception ',e
 		traceback.print_exc()
 		print '\033[0m '
+
+# functions for demo purpose only		
+def fail_server(server_id_str):
+	simple_httpserver.handle_fail_server({'server_id':server_id_str})
+	return 0
+		
+def ok_server(server_id_str):
+	simple_httpserver.handle_ok_server({'server_id':server_id_str})
+	
+def get_all_file_names(server_id_str):
+	S = meta_puller.SERVERS
+	index = int(server_id_str)
+	S = S[index]
+	files = S['get_all_file_names'](S['server_object'])
+	files = [files[i][0] for i in range(len(files))]
+	return ','.join(files)
+
+def get_server_status():
+	S = meta_puller.SERVERS
+	result = []
+	for s in S:
+		result.append(str(s['live']))
+	return ''.join(result)
 	
 import sys
 	
 OUTPUT_FILE = '/tmp/result'
+
+def my_demo():
+	Mount()
+	try:
+		os.remove(log.WRITE_LOG_FILE);
+		os.remove('local_write_log');
+		os.remove('server_write_log');
+	except Exception as e:
+		pass
+	print '11:Server id 0'
+	print '11:',get_all_file_names('0')
+	print '11:','Server id 1'
+	print '11:',get_all_file_names('1')
+	print '11:','Server id 2'
+	print '11:',get_all_file_names('2')
+	print '11:','current status'
+	print '11:',get_server_status()
+	print '11:','make the server 0 fail'
+	fail_server('0')
+	print '11:','current status'
+	print '11:',get_server_status()
+	print '11:','touch file 1,2,3'
+	for i in [1,2,3]:
+		create_file(str(i))
+	print '11: files'
+	print '11: server 0:', get_all_file_names('0')
+	print '11: server 1:', get_all_file_names('1')
+	print '11: server 2:', get_all_file_names('2')
+	
+	print '11:','ok server 0'
+	ok_server('0')
+	print '11:','current status'
+	print '11:',get_server_status()
+	
+	print '11:','touch file 5,6,7'
+	for i in [5,6,7]:
+		create_file(str(i))
+	print '11: files'
+	print '11: server 0:', get_all_file_names('0')
+	print '11: server 1:', get_all_file_names('1')
+	print '11: server 2:', get_all_file_names('2')
+	
+	
+	
 	
 def test():
 	# Test ################################################################################
@@ -715,6 +783,8 @@ def test():
 	'''
 
 if __name__ == "__main__":
+	my_demo()
+	sys.exit(1)
 	# test 0 ----------------, create a file, write to it, sync, read, check, Only 3 servers are allowed!!!!!!!!
 	print sys.argv
 	# I use this file as the core function to be called by the File System, Write as little code in C++ as possible
