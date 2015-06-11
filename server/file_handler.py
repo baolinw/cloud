@@ -275,8 +275,8 @@ def del_file(file_name):
 	# will implement the lock mechanism later
 	if file_name not in meta_puller.get_all_file_names():
 		return '-1:not file named ' + file_name
-	
-	ret_val,ret_msg = meta_puller.del_file(file_name)
+	trans_id = trans.get_next_trans_id()
+	ret_val,ret_msg = meta_puller.del_file(file_name,trans_id)
 	return str(ret_val) + ":" + ret_msg
 
 # commit the create file

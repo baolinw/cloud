@@ -286,7 +286,7 @@ def copy_file_by_renaming(trans_id, file_name, chunks, target_server):
 			s['upload_file'](s['server_object'], '/tmp/' + to_get_file_name, overide_file_name);
 
 
-def del_file(file_name):
+def del_file(file_name,trans_id):
 	# get all the server storing the file
 	if FILES.has_key(file_name) == False:
 		return -1,'File Not Exist ' + file_name
@@ -299,7 +299,9 @@ def del_file(file_name):
 				continue
 			s = SERVERS[server_id]
 			s['delete_file'](s['server_object'], cloud_file_name)
-			
+			log.log_write(server_id,file_name,0,trans_id)	
+	
+	
 	del FILES[file_name]
 	return 0,'Success'
 

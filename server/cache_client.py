@@ -466,7 +466,8 @@ def my_demo():
 	print '11: server 0:', get_all_file_names('0')
 	print '11: server 1:', get_all_file_names('1')
 	print '11: server 2:', get_all_file_names('2')
-	
+	for m in ['1','2','3','5','6','7','11','12','13']:
+		del_file(m)
 	
 	
 	
