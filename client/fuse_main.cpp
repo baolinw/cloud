@@ -33,6 +33,9 @@ const char FOLDER_SPLIT = '@';
 const string FOLDER_SPLIT_STR = "@";
 const string FOLDER_FAKE_FILE = ".holder";
 
+string g_current_file_name = "0";
+string g_current_server_status = "0";
+
 struct FILE_DES {
 	FILE_DES() { file_name = "NotInitialized"; is_folder = false;  file_size = 4;}
 	string file_name;
@@ -156,8 +159,13 @@ FILE_DES get_a_file_by_path(StoreEngine* se, string path, bool& exist) {
 static int hello_getattr(const char *path, struct stat *stbuf)
 {
 	int res = 0;
-	if(strcmp(path,"/folder/mm2/mm3/mm4/mm5") == 0) {
-		res = 0;
+	string w = string(path); w = w.substr(1);
+	if (w == "__fail_server" || w == "__ok_server" || w == "__server_status" || w == "__file_names") {
+		memset(stbuf, 0, sizeof(struct stat));	
+		stbuf->st_mode = S_IFREG | 0777;
+		stbuf->st_nlink = 1;
+		stbuf->st_size = 1024;
+		return 0;
 	}
 	if (strcmp(path, "/") == 0) {
 		stbuf->st_mode = S_IFDIR | 0755;
@@ -204,6 +212,11 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			filler(buf, fs.file_name.c_str(), NULL, 0);
 		}
 	}
+	/* add special files */
+	filler(buf,"__fail_server",NULL,0);
+	filler(buf,"__ok_server",NULL,0);
+	filler(buf,"__server_status", NULL,0);
+	filler(buf,"__file_names",NULL,0);
 	return 0;
 }
 static int hello_rmdir(const char* path)
@@ -239,6 +252,12 @@ map<string,vector<FILE_OPEN_STRUCT*> > g_opened_files;
 static int hello_open(const char *path, struct fuse_file_info *fi)
 {
 	cout << LOG_H << "File Open " << string(path) ;
+	
+	string w = string(path).substr(1);
+	if (w == "__fail_server" || w == "__ok_server" || w == "__server_status" || w == "__file_names")
+	{
+		return 0;
+	}
 	
 	StoreEngine* se = StoreEngine::get_instance();
 	vector<FileSize> file_names = se->list_all_files();
@@ -290,6 +309,8 @@ static int hello_open(const char *path, struct fuse_file_info *fi)
 static int hello_unlink(const char* path)
 {
 	cout << LOG_H << "Remove " << string(path) << endl;
+	string w = string(path).substr(1);
+	if (w == "__fail_server" || w == "__ok_server" || w == "__server_status" || w == "__file_names") return 0;
 	string file_name = string(path); if(file_name[0] == '/') file_name = file_name.substr(1);
 	file_name = convert_local_to_remote(file_name);
 	StoreEngine* se = StoreEngine::get_instance();
@@ -301,8 +322,9 @@ static int hello_unlink(const char* path)
 
 static int hello_create(const char* path, mode_t mode, struct fuse_file_info* fi)
 {
-	
 	cout << LOG_H << "Create " << string(path) << " mode " << (mode&3) << " " << ((fi->flags) & 3) << endl;
+	string w = string(path).substr(1);
+	if (w == "__fail_server" || w == "__ok_server" || w == "__server_status" || w == "__file_names") return -EACCES;
 	string file_name = string(path); if(file_name[0] == '/') file_name = file_name.substr(1);
 	file_name = convert_local_to_remote(file_name);
 	StoreEngine* se = StoreEngine::get_instance();
@@ -321,6 +343,29 @@ static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 	size_t len;
 	(void) fi;
 	cout << LOG_H << "read offset " << offset << " size " << size << endl;
+	string w = string(path).substr(1);
+	if (w == "__fail_server") { 
+		return -EACCES;
+	}
+	if(w == "__ok_server") {
+		return -EACCES;
+	}
+	if(w == "__server_status") {
+		string strs = StoreEngine::get_instance()->get_server_status();
+		//cout << "WBL: strs " << strs << strs.size() << endl;
+		if(offset >= strs.size() + 1) return 0;
+		for(int i = 0; i < strs.size(); i++) buf[i] = strs[i];
+		buf[strs.size()] = 0;
+		//cout << "WBL2: " << string(buf) << endl;
+		return strs.size() + 1;
+	}
+	if(w == "__file_names") {
+		string strs = StoreEngine::get_instance()->get_all_file_names(g_current_file_name);
+		if(offset >= strs.size() + 1) return 0;
+		memcpy(buf,strs.c_str(),strs.size() + 1);
+		return strs.size() + 1;
+	}
+	
 	StoreEngine* se = StoreEngine::get_instance();
 	
 	FILE_OPEN_STRUCT* fos = (FILE_OPEN_STRUCT*)fi->fh;
@@ -343,6 +388,31 @@ static int hello_write(const char *path, const char *buf, size_t size, off_t off
 		      struct fuse_file_info *fi)
 {
 	cout << LOG_H << "Write path " << string(path) << " off " << offset << endl;
+	string w = string(path); w = w.substr(1);
+	if (w == "__fail_server") { 
+		if(offset > 0) return 0;
+		char dbuf[2]; dbuf[1] = 0; dbuf[0] = buf[0];
+		string id = string(dbuf); 
+		StoreEngine::get_instance()->fail_server(id);
+		return size;
+	}
+	if(w == "__ok_server") {
+		if(offset > 0) return 0; char dbuf[2]; dbuf[1] = 0; dbuf[0] = buf[0];
+		StoreEngine::get_instance()->ok_server(string(dbuf));
+		return size;
+	}
+	if(w == "__server_status") {
+		if(offset > 1) return 0;
+		char dbuf[2]; dbuf[1] = 0; dbuf[0] = buf[0];
+		g_current_server_status = string(dbuf);
+		return size;
+	}
+	if(w == "__file_names") {
+		if(offset > 1) return 0;
+		char dbuf[2]; dbuf[1] = 0; dbuf[0] = buf[0];
+		g_current_file_name = string(dbuf);
+		return size;
+	}
 	
 	StoreEngine* se = StoreEngine::get_instance();	
 	FILE_OPEN_STRUCT* fos = (FILE_OPEN_STRUCT*)fi->fh;
@@ -367,6 +437,10 @@ static int hello_write(const char *path, const char *buf, size_t size, off_t off
 static int hello_release(const char* path, struct fuse_file_info* fi)
 {
 	cout << LOG_H << "In release ..." << endl;
+	string w = string(path).substr(1);
+	if (w == "__fail_server" || w == "__ok_server" || w == "__server_status" || w == "__file_names") {
+		return 0;
+	}
 	FILE_OPEN_STRUCT* fos = (FILE_OPEN_STRUCT*)fi->fh;
 	if(fos == NULL) return -ENOENT;	
 	FILE* f = fos->fh;
@@ -389,6 +463,10 @@ static int hello_release(const char* path, struct fuse_file_info* fi)
 
 static int hello_truncate(const char* path, off_t target_size)
 {
+	string w = string(path).substr(1);
+	if (w == "__fail_server" || w == "__ok_server" || w == "__server_status" || w == "__file_names") {
+		return 0;
+	}
 	StoreEngine* se = StoreEngine::get_instance();
 	cout << LOG_H << "Truncate " << string(path) << target_size << endl;
 	string file_name(path); if(file_name[0] == '/') file_name = file_name.substr(1);

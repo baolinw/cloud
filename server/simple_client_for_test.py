@@ -220,6 +220,8 @@ def cache_create_file(file_name):
 	target_file_name = '0_' + file_name + '.trans' + str(trans_id)
 	# do the upload
 	for server in servers:
+		if server < 0:
+			continue
 		s = SERVERS[server]
 		s['upload_file'](s['server_object'], 'fake_new_file_1k', target_file_name)	
 	# confirm the transaction

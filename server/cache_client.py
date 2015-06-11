@@ -422,6 +422,8 @@ def my_demo():
 		os.remove('server_write_log');
 	except Exception as e:
 		pass
+	for i in [101,102,103]:
+		create_file(str(i))
 	print '11:Server id 0'
 	print '11:',get_all_file_names('0')
 	print '11:','Server id 1'
@@ -431,7 +433,7 @@ def my_demo():
 	print '11:','current status'
 	print '11:',get_server_status()
 	print '11:','make the server 0 fail'
-	fail_server('0')
+	fail_server('0'),fail_server('1')
 	print '11:','current status'
 	print '11:',get_server_status()
 	print '11:','touch file 1,2,3'
@@ -449,6 +451,16 @@ def my_demo():
 	
 	print '11:','touch file 5,6,7'
 	for i in [5,6,7]:
+		create_file(str(i))
+	print '11: files'
+	print '11: server 0:', get_all_file_names('0')
+	print '11: server 1:', get_all_file_names('1')
+	print '11: server 2:', get_all_file_names('2')
+	
+	ok_server('1')
+	
+	print '11:','touch file 11,12,13'
+	for i in [11,12,13]:
 		create_file(str(i))
 	print '11: files'
 	print '11: server 0:', get_all_file_names('0')

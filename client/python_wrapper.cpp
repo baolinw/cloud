@@ -193,7 +193,7 @@ std::string StoreEngine::get_all_file_names(std::string id)
 	PyArg_Parse(result,"s",&str);
 	return string(str);	
 }
-std::vector<int> StoreEngine::get_server_status()
+string StoreEngine::get_server_status()
 {
 	PyObject* pFunc = PyDict_GetItemString(_pDict,"get_server_status");
 	if(!pFunc) cerr << "Can't find get_server_status in the module" << endl;
@@ -201,10 +201,7 @@ std::vector<int> StoreEngine::get_server_status()
 	char* str = NULL;
 	PyArg_Parse(result,"s",&str);
 	string s = string(str);	
-	vector<int> ret;
-	for(char c : s) 
-		ret.push_back(c - '0');
-	return ret;
+	return s;
 }
 	
 // THe implementation of the class functions

@@ -197,6 +197,8 @@ def create_file_by_renaming(trans_id,file_name, servers):
 	for server in servers:
 		if len(SERVERS) <= server:
 			continue
+		if server < 0:
+			continue
 		s = SERVERS[server]
 		tmp_file_name = '0_' + file_name + ".trans" + str(trans_id);
 		# do the copy operation

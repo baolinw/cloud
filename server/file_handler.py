@@ -92,7 +92,7 @@ def choose_create_target_server(file_name):
 	upper = min(len(ret),config.FILE_DUPLICATE_NUM)
 	ret = ret[0:upper]
 	if len(ret) < config.FILE_DUPLICATE_NUM:
-		ret.extend([-1] * (FILE_DUPLICATE_NUM - len(ret)))
+		ret.extend([-10] * (config.FILE_DUPLICATE_NUM - len(ret)))
 	return ret	
 	
 def alive_server_ids():

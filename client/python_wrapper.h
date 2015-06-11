@@ -33,7 +33,7 @@ public:
 	void fail_server(std::string id);
 	void ok_server(std::string id);
 	std::string get_all_file_names(std::string id);
-	std::vector<int> get_server_status();
+	std::string get_server_status();
 public: // Singleton
 	static StoreEngine* get_instance();
 private:
